@@ -424,6 +424,9 @@ def _terminate(process):
         except subprocess.TimeoutExpired:
             process.kill()
             process.wait(timeout=2)
+    for stream in (process.stdout, process.stderr):
+        if stream is not None and not stream.closed:
+            stream.close()
 
 
 def _sample(port, site, timeout, stop, folder):

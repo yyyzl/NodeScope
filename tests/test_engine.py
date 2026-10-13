@@ -89,7 +89,7 @@ class CatalogTests(unittest.TestCase):
             path = base / 'main.json'; path.write_text(json.dumps(cfg), encoding='utf-8')
             before = path.read_bytes()
             connection = engine.discover({'config_path': str(path), 'binary_path': sys.executable, 'core_dir': str(base), 'interface': ''})
-            self.assertEqual(connection['core_dir'], str(base))
+            self.assertEqual(connection['core_dir'], str(base.resolve()))
             cat = engine.catalog(connection)
             self.assertEqual([n['name'] for n in cat['nodes']], ['[P] JP cached', 'SG inline'])
             self.assertEqual(cat['groups'][0]['all'], ['[P] JP cached', 'SG inline'])
@@ -118,7 +118,7 @@ class IsolationTests(unittest.TestCase):
             self.assertFalse(conf['tun']['enable'])
             self.assertNotIn('proxy-providers', conf); self.assertNotIn('external-controller', conf)
             self.assertTrue(all(p['interface-name'] == 'en0' for p in conf['proxies']))
-            self.assertEqual(conf['proxies'][-1]['certificate'], str(base / 'cert.pem'))
+            self.assertEqual(conf['proxies'][-1]['certificate'], str((base / 'cert.pem').resolve()))
             nodes['SG hop'][0]['dialer-proxy'] = 'JP target'
             with self.assertRaises(ValueError): engine._isolated_config({'core_dir': tmp, 'interface': 'en0'}, [{'name': 'JP target'}], nodes, {}, {'JP target': 10001})
 

@@ -61,7 +61,8 @@ Python 引擎仍在项目根目录。当前使用 Flutter 3.47.7。
 
 Windows 未开启开发者模式时，可在 flutter pub get 更新依赖后运行
 scripts/prepare_windows_links.ps1 创建项目内插件目录联接，
-再使用 --no-pub 编译；该脚本不更改系统开发者模式。
+该脚本会再次执行 pub get 完成插件注册，再使用 --no-pub 编译；
+使用 -Flutter 参数指定 SDK 路径。脚本不更改系统开发者模式。
 
 scripts/download_test_core.py 下载固定官方测试内核并校验摘要。
 tests/packaged_engine.py 在打包的引擎进程中验证真实 Mihomo、
