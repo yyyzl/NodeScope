@@ -1,135 +1,79 @@
-# 节点探针 · Clash Site Probe
+# NodeScope · 节点探针
 
-一个本地运行的 Clash/Mihomo 节点测速小工具。按目标网站、地区和节点范围比较线路；默认只推荐，不切换你正在使用的节点。
+一个 Flutter 原生桌面小应用，按目标网站、地区和节点范围比较 Clash/Mihomo
+线路。支持 Windows 和 macOS，复用已有测速引擎，以每个网站的真实 HTTP
+请求结果分别推荐节点。
 
-## 你能做什么
+## 启动
 
-- 多网站：内置 ChatGPT、GitHub、Google、YouTube、Wikipedia；可新增、编辑和删除测试地址，设置预期 HTTP 状态码。
-- 多地区：默认日本、新加坡；香港、韩国、台湾、美国、其他地区可多选，也可测全部地区。
-- 限定范围：策略组（递归展开子组）、provider/订阅来源、名称包含/排除、手动节点列表、最多节点数。
-- 一次比较多个网站，为每个网站分别给出推荐，而不是把不同网站混成一个分数。
-- 查看成功率、首字节时间中位数、耗时波动、失败原因与各轮结果；导出 JSON/CSV。
-- 临时启动独立 Mihomo，通过各节点对应的本地端口测速；结束后关闭临时内核。
-- 保存网站和筛选设置，保留上次完整报告。停止或失败不覆盖上次完整结果。
+Windows：解压完整的 NodeScope-Windows-x64.zip，双击 NodeScope.exe。
+请保留旁边的 data、engine 和 DLL，不需要安装 Python、Node 或 Flutter。
 
-**地区来自节点名称识别，不是出口 IP 的地理定位。** ChatGPT 默认检查 trace 端点，不读取 Codex 登录凭据，不保证账号登录、模型生成或流式连接正常。
+macOS：使用与 CPU 架构匹配的 macOS ZIP，解压后打开 NodeScope.app。
+当前构建为 ad-hoc 签名，尚未做 Apple Developer 签名与公证。
 
-## Mac 启动
+先打开 Clash Verge Rev 并运行代理内核，再刷新节点、选择范围并开始测速。
+自动发现失败时，在连接设置中选择内核、生效配置及其工作目录。
+应用不包含订阅，不下载机场配置。
 
-前提：
+## 功能
 
-1. 已安装并打开 Clash Verge Rev，代理内核正在运行。
-2. 已安装 **Python 3.10 或更新版本**；终端中的 `python3 --version` 能正常返回。
-3. 首次启动需要联网安装 PyYAML；以后不需要每次安装。工具不自带机场节点或订阅。
+- ChatGPT、GitHub、Google、YouTube、Wikipedia，以及自定义 HTTP/HTTPS 地址。
+- 默认日本、新加坡；支持香港、韩国、台湾、美国和其他地区。
+- 策略组、provider 来源、高级名称筛选、节点上限、手动选择。
+- 留空名称筛选不限制节点，手动选择为空使用全部匹配节点。
+- 成功率、首字节中位数、波动、逐轮明细；失败节点仍保留。
+- 点击首字节表头排序；只有全部轮次成功的节点进入推荐。
+- 取消不覆盖上次完整报告；导出 CSV / JSON。
 
-操作：
+界面以 prototypes/ui/index.html 的已确认原型为基准，左右栏自然展开，
+只使用窗口整体滚动，避免固定高度把结果压成狭小区域。
 
-1. 解压工具包，把整个 `ClashSiteProbe` 文件夹放到你希望保留的位置。
-2. 双击文件夹里的 **`启动.command`**。浏览器会打开本地工具。
-3. 点击“刷新节点”，选择网站和地区，先预览范围，再开始测速。
-4. 保留启动时打开的终端窗口；退出时按 `Control+C`。
+## 引擎和安全边界
 
-如果 `.command` 没有执行权限，在终端进入这个文件夹后运行：
+Flutter 通过私有 stdin/stdout 管道启动随包提供的 Python 引擎，
+不会打开外部浏览器或新增本地 Web 服务。
+引擎读取主客户端配置和已有缓存，启动独立临时 Mihomo，不修改主配置、
+不切换主节点、不关闭主客户端。Windows 支持只读 named pipe 控制接口。
 
-```bash
-chmod +x 启动.command
-./启动.command
-```
+地区来自节点名称，不是 IP 地理定位。ChatGPT 默认测试 trace 端点，
+不测模型生成速度、不验证账号业务、不读取浏览器或 Codex 凭据。
+Windows 使用系统 curl；macOS 使用本机 curl；Mihomo 来自用户客户端。
+普通退出、取消和窗口关闭会清理探针子进程。Windows Job Object 补充异常退出回收。
+强制断电等中断可能留下用户私有数据目录中的临时文件。
 
-这是 Python 本地工具，不是签名的 `.app` 或 `.dmg`。不需要关闭 macOS 安全保护。Python 不存在、版本过旧或依赖下载失败时，启动器会直接提示，不会伪造测速结果。
+数据目录：Windows 用户的 LocalAppData/NodeScope；
+macOS 用户的 Library/Application Support/NodeScope。
+设置和报告保存在本机。真实配置、节点凭据和用户测速报告禁止提交仓库。
 
-也可以手动启动：
+## 开发和验证
 
-```bash
-python3 -m venv .venv
-.venv/bin/python -m pip install -r requirements.txt
-.venv/bin/python server.py
-```
+源码位于 G:\project\ClashSiteProbe。Flutter 源码在 desktop/，
+Python 引擎仍在项目根目录。当前使用 Flutter 3.47.7。
 
-## 如何选范围
+    python -m pip install -r requirements.txt pyinstaller
+    cd desktop
+    flutter pub get
+    flutter analyze --no-pub
+    flutter test --no-pub --timeout 60s
+    cd ..
+    python scripts/build_bundle.py
 
-- **地区默认勾选日本、新加坡。** 加测附近区域时再勾选香港、韩国或台湾。
-- 不同条件取交集；同一地区列表的多个选项取并集。
-- 名称包含/排除支持逗号分隔的普通关键词，不是正则表达式。包含列表中命中任意关键词即可；排除列表中命中任意关键词就排除。
-- “手动选择”为空表示不额外限制；勾选节点后仍然受地区、组、provider 和名称条件限制。
-- 策略组会展开子组，并防止循环引用；排序前去重。
-- 一次最多选择 10 个网站，网站配置最多保存 20 个；测速节点有资源上限。
+Windows 未开启开发者模式时，可在 flutter pub get 更新依赖后运行
+scripts/prepare_windows_links.ps1 创建项目内插件目录联接，
+该脚本会再次执行 pub get 完成插件注册，再使用 --no-pub 编译；
+使用 -Flutter 参数指定 SDK 路径。脚本不更改系统开发者模式。
 
-## 如何配置其他网站
+scripts/download_test_core.py 下载固定官方测试内核并校验摘要。
+tests/packaged_engine.py 在打包的引擎进程中验证真实 Mihomo、
+两个本地网站、成功/失败行、各站独立推荐、导出、取消与 EOF 清理。
+这些服务是隔离测试夹具，不是公网节点测速成绩。
 
-在“网站管理”中填写：
+Git 流程：独立功能分支先通过 Windows / macOS 构建和测试，然后创建 PR，
+再次核对该提交的检查结果，最后合入 master。工作流见 .github/workflows/desktop.yml。
 
-- 名称：便于辨认；
-- URL：完整的 `https://...` 或 `http://...`；
-- 预期状态码：例如 `200` 或 `204`，多个值用逗号隔开。
+## 授权
 
-优先选择你实际访问的轻量页面或 API。首页访问通过不代表该站点全部业务正常。需要登录的网站，应选不带凭据的检查地址；本版不提供账号密钥输入，也不读取浏览器或 Codex 凭据。
-
-不建议填写含 token、签名或私人数据的 URL：测试地址会保存在本地设置和报告中。默认跟随有限次数的 HTTP/HTTPS 重定向。HTTPS 证书验证不会被关闭。
-
-## 结果怎么看
-
-- **首字节时间（TTFB）**：收到第一字节之前的整段耗时，不是 ping，不是下载带宽。
-- **总耗时**：每轮请求完成所需的时间，保存在详细结果里。
-- **成功率**：达到该网站预期状态码及内容校验的比例。
-- **推荐**：只在全部轮次均成功的节点中，按该网站的时延与波动排名。
-- 失败节点也保留在表中，不会只展示成功结果。
-
-公网、网站服务端负载、DNS 和并发竞争都会影响排名。默认轻量轮次适合初筛；重要使用前，可缩小到候选节点范围再复测。ChatGPT 检查不等于模型生成速度。
-
-## 找不到 Clash / provider 节点
-
-展开“连接设置”，手动填写：
-
-- Mihomo 二进制路径；
-- 当前生效配置路径；
-- 主内核工作目录（启动参数 `-d`，provider 相对路径以此为准）；
-- 控制器地址或 Unix Socket；
-- 出站物理网卡（Mac 自动检测；特殊网络环境可手动填写）。
-
-控制接口仅允许本机地址。控制接口 secret 如存在，由工具从本地 Clash 配置读取，不通过网页输入或写入测速报告。
-
-工具读取已有 provider 缓存，不主动下载订阅。若缓存不存在、节点名称覆盖规则或特殊配置无法安全解析，会显示警告或失败；请先在 Clash 中更新/加载订阅再试。不要把真实节点配置上传到聊天或公共仓库。
-
-## 数据与安全
-
-Mac 设置和报告目录：
-
-```text
-~/Library/Application Support/ClashSiteProbe/
-  settings.json
-  latest.json
-  reports/
-```
-
-其他系统默认：`~/.clash-site-probe/`。可通过 `--data-dir` 更改。
-
-- 网页仅监听 `127.0.0.1`，使用随机本地会话、CSRF 校验、Host/Origin 校验。
-- 不修改主 Clash 配置，不自动切换，不关闭主内核，不读取网站登录凭据。
-- 临时配置包含所需节点凭据，仅存放于权限受限的临时目录；正常结束或取消时删除。
-- 不向云端上传报告。报告包含节点名和测试 URL，不包含节点密码或完整配置。
-- 不使用用户的 `.curlrc`；避免其额外参数影响测速。
-- 每个临时 listener 绑定指定节点。出站网卡约束不代表能绕过所有操作系统路由或其他 VPN，特殊 TUN/VPN 共存环境需另行验证。
-- 测速仅使用 HTTP/TCP，每个临时 listener 显式关闭 UDP，避免无关的 UDP 端口绑定影响启动。
-
-## 测试与验证边界
-
-```bash
-python -m unittest discover -s tests -v
-```
-
-`tests/integration_real.py --mihomo <binary>` 使用**真实 Mihomo**和本机可控的 HTTP/转发代理服务验证整个网络路径。这些服务是测试夹具，不是你的机场节点，也不产生真实站点的公网排名。
-
-本版在 Windows 开发环境执行单元测试、实际 Mihomo 集成和浏览器交互检查；Mac 自动发现、网卡绑定以及 `.command` 双击行为需要在你的 Mac 上验证。不能把 Windows 测试当作 Mac 实机验收。
-
-2026-10-14 本次交付验证：Python 29/29、浏览器 11/11、真实 Mihomo v1.19.32 连续三次集成均通过，启动器通过 `bash -n`。每次集成包含 6 个节点、2 个网站、36 次实际 HTTP 请求和 12 行结果。具体命令、观测结果及边界见 [VALIDATION.md](VALIDATION.md)。
-
-## 文件与授权
-
-- `server.py`：本地服务、设置、任务与导出。
-- `engine.py`：节点发现、筛选、临时内核和测速。
-- `static/index.html`：中文界面，无外部字体或 CDN 依赖。
-- `启动.command`：Mac 启动器。
-- `tests/`：自动测试和真实内核集成脚本。
-
-界面基于 ESTHER不二（esthersjw）的 esther-design-system 模板改编，界面及其改编遵循 **CC BY-NC-SA 4.0**，需保留署名、非商业使用、相同方式共享。未捆绑 Mihomo；请使用你已有的内核，其授权由原项目规定。PyYAML 由首次启动时安装。
+界面基于 ESTHER不二（esthersjw）的 esther-design-system，
+其改编遵循 **CC BY-NC-SA 4.0**。第三方依赖和再分发说明见
+THIRD_PARTY_NOTICES.md。未将该界面重新标为 MIT。
