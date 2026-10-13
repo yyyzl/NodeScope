@@ -26,6 +26,7 @@ import urllib.request
 from pathlib import Path
 from urllib.parse import urlsplit
 import yaml
+from windows_support import discover_windows, physical_interface, pipe_api, hidden_process, resolve_pipe
 
 
 REGIONS = [{'id': k, 'name': v} for k, v in [('jp', '日本'), ('sg', '新加坡'), ('hk', '香港'), ('kr', '韩国'), ('tw', '台湾'), ('us', '美国'), ('other', '其他')]]
@@ -157,6 +158,8 @@ def discover(overrides, require_runtime=True):
     # Browser forms send all keys; blank values explicitly mean auto-discover.
     overrides = {k: v for k, v in (overrides or {}).items() if v not in ('', None)}
     hints = {}
+    if sys.platform == 'win32' and (not overrides.get('config_path') or (require_runtime and not overrides.get('binary_path'))):
+        hints = discover_windows()
     if sys.platform == 'darwin':
         try:
             listing = subprocess.run(['/bin/ps', '-axo', 'command='], capture_output=True, text=True, timeout=3).stdout
@@ -192,6 +195,8 @@ def discover(overrides, require_runtime=True):
             raise RuntimeError('未找到 Mihomo 可执行文件，请指定 binary_path')
         binary = ''
     interface = overrides.get('interface', '')
+    if sys.platform == 'win32' and not interface and not overrides.get('config_path'):
+        interface = physical_interface()
     if sys.platform == 'darwin' and not interface:
         try:
             state = subprocess.run(['/usr/sbin/scutil'], input='show State:/Network/Global/IPv4\n', capture_output=True, text=True, timeout=3).stdout
@@ -199,7 +204,7 @@ def discover(overrides, require_runtime=True):
             interface = match.group(1) if match else ''
         except (OSError, subprocess.TimeoutExpired):
             pass
-    if interface and not re.fullmatch(r'[A-Za-z0-9_.:-]{1,64}', interface):
+    if interface and (len(interface) > 64 or any(ord(c) < 32 for c in interface) or (sys.platform != 'win32' and not re.fullmatch(r'[A-Za-z0-9_.:-]{1,64}', interface))):
         raise ValueError('物理网络接口名称无效')
     if require_runtime and sys.platform == 'darwin' and (not interface or str(interface).startswith(('utun', 'tun'))):
         raise RuntimeError('无法确定物理网络接口；请指定 en0/en1 等接口，避免经过主核心 TUN')
@@ -214,11 +219,14 @@ def discover(overrides, require_runtime=True):
     return {'config_path': config, 'binary_path': str(Path(binary).expanduser().resolve()) if binary else '',
             'core_dir': str(Path(overrides.get('core_dir') or hints.get('core_dir') or Path(config).parent).expanduser().resolve()),
             'controller': _controller(controller),
-            'unix_socket': str(unix_socket), 'interface': interface}
+            'unix_socket': str(unix_socket), 'interface': interface,
+            'named_pipe': resolve_pipe(str(overrides.get('named_pipe') or cfg.get('external-controller-pipe') or '')) if sys.platform == 'win32' else ''}
 
 
 def _api(connection, cfg, endpoint):
     secret = str(cfg.get('secret') or '')
+    if connection.get('named_pipe'):
+        return pipe_api(connection['named_pipe'], endpoint, secret)
     if connection.get('unix_socket'):
         args = [shutil.which('curl') or 'curl', '-q', '--silent', '--fail', '--noproxy', '*', '--max-time', '4', '--unix-socket', connection['unix_socket']]
         # Header on stdin avoids exposing controller credentials in process arguments.
@@ -345,7 +353,7 @@ def _inventory(connection):
             groups.append({'name': name, 'now': value.get('now', ''), 'all': value['all']})
     if not connection.get('interface'):
         warnings.append('未绑定物理接口，隔离出站依赖操作系统路由；主客户端 TUN 可能影响结果')
-    public = {'connection': {k: connection.get(k, '') for k in ('config_path', 'binary_path', 'core_dir', 'controller', 'unix_socket', 'interface')},
+    public = {'connection': {k: connection.get(k, '') for k in ('config_path', 'binary_path', 'core_dir', 'controller', 'unix_socket', 'interface', 'named_pipe')},
               'nodes': [{'name': n, 'region': _region(n), 'provider': p, 'type': v['type']} for n, (v, p) in proxies.items()],
               'groups': groups, 'providers': list(providers), 'warnings': warnings, 'version': version}
     return public, proxies, cfg
@@ -422,19 +430,21 @@ def _sample(port, site, timeout, stop, folder):
     failed = {'ok': False, 'status': 0, 'ttfb_ms': None, 'total_ms': None, 'reason': '已取消'}
     if stop.is_set():
         return failed
-    curl = shutil.which('curl')
+    curl = str(Path(os.environ.get('SystemRoot', r'C:\Windows')) / 'System32/curl.exe') if sys.platform == 'win32' else shutil.which('curl')
     if not curl:
         raise RuntimeError('未找到 curl，请安装系统 curl')
     body = Path(folder) / ('body-' + uuid.uuid4().hex)
     args = [curl, '-q', '--silent', '--show-error', '--proxy', f'http://127.0.0.1:{port}', '--noproxy', '',
             '--proto', '=http,https', '--proto-redir', '=http,https', '--location', '--max-redirs', '5',
             '--connect-timeout', str(timeout), '--max-time', str(timeout), '--max-filesize', str(2 * 1024 * 1024),
-            '--output', str(body), '--write-out', '%{json}', '--url', site['url']]
+            '--output', str(body), '--write-out',
+            '{"http_code":"%{http_code}","time_starttransfer":%{time_starttransfer},"time_total":%{time_total}}',
+            '--url', site['url']]
     env = os.environ.copy()
     for key in list(env):
         if key.casefold() in ('http_proxy', 'https_proxy', 'all_proxy', 'no_proxy'):
             env.pop(key)
-    process = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=env)
+    process = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=env, **hidden_process())
     try:
         deadline = time.monotonic() + timeout + 2
         while True:
@@ -490,7 +500,7 @@ def _launch_core(connection, selected, proxies, original, folder, stop, emit):
         config_path.chmod(0o600)
         args = [connection['binary_path'], '-d', str(folder), '-f', str(config_path)]
         with open(Path(folder) / 'validation.log', 'wb') as log:
-            check = subprocess.Popen([args[0], '-t', *args[1:]], stdout=log, stderr=log)
+            check = subprocess.Popen([args[0], '-t', *args[1:]], stdout=log, stderr=log, **hidden_process())
             try:
                 deadline = time.monotonic() + 15
                 while check.poll() is None:
@@ -503,7 +513,7 @@ def _launch_core(connection, selected, proxies, original, folder, stop, emit):
                 _terminate(check)
         log = open(Path(folder) / 'core.log', 'wb')
         try:
-            core = subprocess.Popen(args, stdout=log, stderr=log)
+            core = subprocess.Popen(args, stdout=log, stderr=log, **hidden_process())
         except OSError:
             log.close()
             raise RuntimeError('无法启动 Mihomo；请检查 binary_path 和执行权限') from None

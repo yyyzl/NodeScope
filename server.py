@@ -21,7 +21,7 @@ from urllib.parse import parse_qs, urlsplit
 
 VERSION = '1.0.0'
 ROOT = Path(__file__).resolve().parent
-CONNECTION_KEYS = ('config_path', 'binary_path', 'core_dir', 'controller', 'unix_socket', 'interface')
+CONNECTION_KEYS = ('config_path', 'binary_path', 'core_dir', 'controller', 'unix_socket', 'interface', 'named_pipe')
 
 class JobConflict(RuntimeError):
     pass
@@ -165,9 +165,9 @@ class App:
             return copy.deepcopy(dict(self.settings, csrf=self.csrf, regions=self.engine.REGIONS,
                                       last_report=self.last_report, version=VERSION, warnings=self.settings_warnings))
 
-    def csv_report(self):
+    def csv_report(self, selected_report=None):
         with self.lock:
-            report = copy.deepcopy(self.last_report)
+            report = copy.deepcopy(selected_report if selected_report is not None else self.last_report)
         if report is None:
             raise ValueError('尚无完整测速报告。')
         stream = io.StringIO(newline='')
