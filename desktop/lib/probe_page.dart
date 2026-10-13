@@ -89,7 +89,8 @@ class _ProbePageState extends State<ProbePage> {
     ),
   );
 
-  Widget _header() => Padding(
+  Widget _header() => Container(
+    width: double.infinity,
     padding: const EdgeInsets.symmetric(vertical: 18),
     child: Wrap(
       alignment: WrapAlignment.spaceBetween,
