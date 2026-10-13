@@ -1,0 +1,315 @@
+[
+  {
+    "file": "idle.png",
+    "state": "idle",
+    "size": "1280x860",
+    "zoom": 1,
+    "animationWaitMs": 40,
+    "issues": [],
+    "lint": []
+  },
+  {
+    "file": "running.png",
+    "state": "running",
+    "size": "1280x860",
+    "zoom": 1,
+    "animationWaitMs": 41,
+    "issues": [],
+    "lint": []
+  },
+  {
+    "file": "done.png",
+    "state": "done",
+    "size": "1280x860",
+    "zoom": 1,
+    "animationWaitMs": 37,
+    "issues": [],
+    "lint": []
+  },
+  {
+    "file": "stopped.png",
+    "state": "stopped",
+    "size": "1280x860",
+    "zoom": 1,
+    "animationWaitMs": 46,
+    "issues": [],
+    "lint": []
+  },
+  {
+    "file": "empty.png",
+    "state": "empty",
+    "size": "1280x860",
+    "zoom": 1,
+    "animationWaitMs": 45,
+    "issues": [],
+    "lint": []
+  },
+  {
+    "file": "error.png",
+    "state": "error",
+    "size": "1280x860",
+    "zoom": 1,
+    "animationWaitMs": 42,
+    "issues": [],
+    "lint": []
+  },
+  {
+    "file": "connection.png",
+    "state": "connection",
+    "size": "1280x860",
+    "zoom": 1,
+    "animationWaitMs": 39,
+    "issues": [],
+    "lint": []
+  },
+  {
+    "file": "sites.png",
+    "state": "sites",
+    "size": "1280x860",
+    "zoom": 1,
+    "animationWaitMs": 17,
+    "issues": [],
+    "lint": []
+  },
+  {
+    "file": "site-edit.png",
+    "state": "site-edit",
+    "size": "1280x860",
+    "zoom": 1,
+    "animationWaitMs": 33,
+    "issues": [],
+    "lint": []
+  },
+  {
+    "file": "nodes.png",
+    "state": "nodes",
+    "size": "1280x860",
+    "zoom": 1,
+    "animationWaitMs": 42,
+    "issues": [],
+    "lint": []
+  },
+  {
+    "file": "detail.png",
+    "state": "detail",
+    "size": "1280x860",
+    "zoom": 1,
+    "animationWaitMs": 36,
+    "issues": [],
+    "lint": []
+  },
+  {
+    "file": "export.png",
+    "state": "export",
+    "size": "1280x860",
+    "zoom": 1,
+    "animationWaitMs": 19,
+    "issues": [],
+    "lint": []
+  },
+  {
+    "file": "idle-@2x.png",
+    "state": "idle",
+    "size": "1280x860",
+    "zoom": 2,
+    "animationWaitMs": 32,
+    "issues": [],
+    "lint": []
+  },
+  {
+    "file": "motion-probe-settings",
+    "state": "idle",
+    "size": "1280x860",
+    "zoom": 1,
+    "group": "settings",
+    "motion": {
+      "load": {
+        "elements": 4,
+        "loops": 0,
+        "maxMove": 14,
+        "maxSize": 0.08,
+        "maxOpacity": 0.87,
+        "top": [
+          {
+            "el": "span.tab-marker",
+            "move": 14,
+            "size": 0.08,
+            "opacity": 0,
+            "loop": false,
+            "sources": [
+              "js:style",
+              "transition:width"
+            ]
+          },
+          {
+            "el": "aside.configuration",
+            "move": 10,
+            "size": 0,
+            "opacity": 0.87,
+            "loop": false,
+            "sources": [
+              "css:workspace-enter"
+            ]
+          },
+          {
+            "el": "section.results",
+            "move": 8,
+            "size": 0,
+            "opacity": 0.85,
+            "loop": false,
+            "sources": [
+              "css:workspace-enter"
+            ]
+          },
+          {
+            "el": "main.workspace",
+            "move": 6,
+            "size": 0,
+            "opacity": 0.76,
+            "loop": false,
+            "sources": [
+              "css:workspace-enter"
+            ]
+          }
+        ]
+      },
+      "steps": {
+        "elements": 3,
+        "loops": 0,
+        "maxMove": 304,
+        "maxSize": 1,
+        "maxOpacity": 0.72,
+        "top": [
+          {
+            "el": "section",
+            "move": 304,
+            "size": 1,
+            "opacity": 0,
+            "loop": false,
+            "sources": [
+              "js:style"
+            ]
+          },
+          {
+            "el": "dialog",
+            "move": 149,
+            "size": 0.334,
+            "opacity": 0.72,
+            "loop": false,
+            "sources": [
+              "css:dialog-enter"
+            ]
+          },
+          {
+            "el": "section",
+            "move": 1,
+            "size": 0.001,
+            "opacity": 0,
+            "loop": false,
+            "sources": [
+              "js:style"
+            ]
+          }
+        ]
+      },
+      "hero": {
+        "elements": 0,
+        "loops": 0,
+        "maxMove": 0,
+        "maxSize": 0,
+        "maxOpacity": 0,
+        "top": [],
+        "layers": 0
+      },
+      "scroll": {
+        "elements": 0,
+        "loops": 0,
+        "maxMove": 0,
+        "maxSize": 0,
+        "maxOpacity": 0,
+        "top": [],
+        "scrollable": true
+      }
+    },
+    "issues": [
+      "滚动：没有检测到随滚动出现的变化；落地页、品牌页、发布页和展览页需要一段滚动叙事"
+    ]
+  },
+  {
+    "file": "motion-entry-end.jpg",
+    "state": "idle",
+    "size": "1280x860",
+    "zoom": 1,
+    "group": "entry",
+    "issues": [],
+    "frames": {
+      "start": {
+        "file": "motion-entry-start.jpg",
+        "source": "Page.screencastFrame",
+        "timeMs": 272
+      },
+      "mid": {
+        "file": "motion-entry-mid.jpg",
+        "source": "Page.screencastFrame",
+        "timeMs": 487
+      },
+      "end": {
+        "file": "motion-entry-end.jpg",
+        "source": "Page.captureScreenshot",
+        "timeMs": 2720
+      }
+    },
+    "sampling": {
+      "mode": "entry"
+    },
+    "durationMs": 2720,
+    "consistency": {
+      "status": "matched",
+      "reference": "motion-entry-end.jpg",
+      "different": false,
+      "changedPixels": 0,
+      "maxTilePixels": 0,
+      "pixelRatio": 0
+    }
+  },
+  {
+    "file": "motion-settings-end.jpg",
+    "state": "idle",
+    "size": "1280x860",
+    "zoom": 1,
+    "group": "settings",
+    "issues": [],
+    "frames": {
+      "start": {
+        "file": "motion-settings-start.jpg",
+        "source": "Page.captureScreenshot",
+        "timeMs": 1025
+      },
+      "mid": {
+        "file": "motion-settings-mid.jpg",
+        "source": "Page.screencastFrame",
+        "timeMs": 1117
+      },
+      "end": {
+        "file": "motion-settings-end.jpg",
+        "source": "Page.captureScreenshot",
+        "timeMs": 3156
+      }
+    },
+    "sampling": {
+      "mode": "action",
+      "step": 4,
+      "action": "fill",
+      "raw": "fill #site-url https://www.notion.so/"
+    },
+    "durationMs": 3156,
+    "consistency": {
+      "status": "matched",
+      "reference": "motion-settings-end.jpg",
+      "different": false,
+      "changedPixels": 20,
+      "maxTilePixels": 12,
+      "pixelRatio": 0.00001816860465116279
+    }
+  }
+]

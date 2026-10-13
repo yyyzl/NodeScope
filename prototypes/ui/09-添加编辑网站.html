@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<!-- 从 ESTHER不二 template-app 结构改编；署名与许可见页脚及原型说明。 -->
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>添加 / 编辑网站 · 节点探针</title>
+  <link rel="stylesheet" href="assets/prototype.css">
+  <script defer src="assets/prototype.js"></script>
+  <script defer src="assets/alpine.min.js"></script>
+</head>
+<body data-start="site-edit">
+<svg width="0" height="0" aria-hidden="true" style="position:absolute">
+ <defs>
+  <symbol id="i-settings" viewBox="0 0 24 24"><path d="m9 3 1-1h4l1 3 3 1 3-1 2 4-2 2v3l2 2-2 4-3-1-3 1-1 3h-4l-1-3-3-1-3 1-2-4 2-2v-3L1 9l2-4 3 1 3-1Z" transform="translate(1 0) scale(.9)"/><circle cx="12" cy="12" r="3"/></symbol>
+  <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20 7a9 9 0 0 0-15-2L2 8m0-5v5h5m-3 9a9 9 0 0 0 15 2l3-3m0 5v-5h-5"/></symbol>
+  <symbol id="i-play" viewBox="0 0 24 24"><path d="m7 4 13 8-13 8Z" fill="currentColor" stroke="none"/></symbol>
+  <symbol id="i-stop" viewBox="0 0 24 24"><rect x="5" y="5" width="14" height="14" rx="1" fill="currentColor" stroke="none"/></symbol>
+  <symbol id="i-close" viewBox="0 0 24 24"><path d="m5 5 14 14M19 5 5 19"/></symbol>
+  <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 3v12m-5-5 5 5 5-5M4 16v5h16v-5"/></symbol>
+  <symbol id="i-chevron" viewBox="0 0 24 24"><path d="m9 5 7 7-7 7"/></symbol>
+  <symbol id="i-list" viewBox="0 0 24 24"><path d="M8 5h13M8 12h13M8 19h13M3 5h.1M3 12h.1M3 19h.1" stroke-width="2"/></symbol>
+  <symbol id="i-plug" viewBox="0 0 24 24"><path d="M8 2v5m8-5v5M6 7h12v3a6 6 0 0 1-12 0V7m6 9v6M5 7h14"/></symbol>
+  <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v6m0-10v.1" stroke-width="2"/></symbol>
+  <symbol id="i-doc" viewBox="0 0 24 24"><path d="M5 2h9l5 5v15H5V2m9 0v5h5M8 11h8M8 15h8M8 19h5"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="m4 12 5 5L20 6"/></symbol>
+  <symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><ellipse cx="12" cy="12" rx="4" ry="9"/><path d="M3 12h18"/></symbol>
+  <symbol id="i-alert" viewBox="0 0 24 24"><path d="m12 3 10 18H2L12 3m0 6v6m0 3v.1" stroke-width="1.7"/></symbol>
+ </defs>
+</svg>
+<div class="app-window" x-data="probeUI" x-cloak>
+ <div class="titlebar" aria-hidden="true"><span>节点探针</span><div class="window-actions"><span>—</span><span>□</span><span><svg class="icon"><use href="#i-close"/></svg></span></div></div>
+ <header class="app-header">
+  <div class="brand"><span class="brand-mark" aria-hidden="true"></span><h1>节点探针</h1></div>
+  <div class="header-actions"><button class="quiet save-settings" @click="saveSettings()" :disabled="running">保存设置</button><button @click="openModal('connection')" :disabled="running"><svg class="icon"><use href="#i-settings"/></svg>连接设置</button></div>
+ </header>
+ <div class="connection-bar">
+  <div class="connection-copy"><svg class="icon" aria-hidden="true"><use href="#i-plug"/></svg><strong>Clash Verge Rev</strong><span class="separator">·</span><span class="status-text"><i class="status-dot" :class="{connected:connected}"></i><span x-text="connected ? '已连接 · 8 个可测节点' : '待连接 · 请刷新节点'"></span></span></div>
+  <button class="refresh-button" @click="refresh()" :disabled="running"><svg class="icon"><use href="#i-refresh"/></svg>刷新节点</button>
+ </div>
+ <main class="workspace">
+  <aside class="configuration" aria-label="测速配置">
+   <fieldset class="config-content" :disabled="running">
+    <section class="filter-section">
+     <div class="section-heading"><h2><span class="step">01</span>测试目标</h2><button class="quiet manage-sites" @click="openModal('sites')">管理网站<svg class="icon" style="width:13px;height:13px"><use href="#i-chevron"/></svg></button></div>
+     <div class="site-options"><template x-for="site in sites" :key="site.id"><label class="site-option"><input type="checkbox" :value="site.id" x-model="selectedSites" :aria-label="'测试 '+site.name"><span x-text="site.name"></span></label></template></div>
+    </section>
+    <section class="filter-section">
+     <div class="section-heading"><h2><span class="step">02</span>节点范围</h2><button class="quiet" @click="regions=[]">全部地区</button></div>
+     <div class="region-options" aria-label="地区选择"><template x-for="region in regionList" :key="region.id"><button class="chip" :aria-pressed="regions.includes(region.id)" @click="toggleRegion(region.id)"><span class="check" aria-hidden="true">✓</span><span x-text="region.name"></span></button></template></div>
+     <div class="scope-fields">
+      <label for="group">策略组</label><select id="group" x-model="group"><option value="">全部策略组</option><option value="Asia">亚洲线路</option><option value="All">全部线路</option></select>
+      <label for="provider">来源</label><select id="provider" x-model="provider"><option value="">全部来源</option><option>主订阅</option><option>备用订阅</option></select>
+     </div>
+     <button class="advanced-toggle" @click="advanced=!advanced" :aria-expanded="advanced" aria-controls="advanced-fields"><span>高级筛选<span class="muted small" x-show="include||exclude||limit||manualNodes.length"> · 已限定</span></span><svg class="icon"><use href="#i-chevron"/></svg></button>
+     <div class="advanced-fields" id="advanced-fields" x-show="advanced" x-transition:enter="transition" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100">
+      <label class="field"><span>名称包含</span><input id="include" x-model="include" placeholder="留空不限制，例如：东京, 专线"><span class="hint">多个关键词用英文逗号分隔。</span></label>
+      <label class="field"><span>名称排除</span><input id="exclude" x-model="exclude" placeholder="留空不排除，例如：备用, 测试"></label>
+      <label class="field"><span>最多节点数</span><input id="limit" type="number" min="0" max="200" x-model.number="limit"><span class="hint">0 表示不限制。</span></label>
+      <div class="inline-summary"><span class="small muted" x-text="manualNodes.length ? '手动选择 '+manualNodes.length+' 个节点' : '全部匹配节点'"></span><button class="quiet" @click="openModal('nodes')">手动选择</button></div>
+     </div>
+    </section>
+   </fieldset>
+   <div class="configuration-footer">
+    <fieldset class="sampling" :disabled="running">
+     <label class="field"><span>测试轮次</span><select id="rounds" x-model.number="rounds"><option value="1">1 轮</option><option value="3">3 轮</option><option value="5">5 轮</option><option value="10">10 轮</option></select></label>
+     <label class="field"><span>并发数</span><select id="workers" x-model.number="workers"><option value="1">1 并发</option><option value="2">2 并发</option><option value="4">4 并发</option><option value="8">8 并发</option></select></label>
+     <label class="field"><span>超时时间</span><select id="timeout" x-model.number="timeout"><option value="5">5 秒</option><option value="8">8 秒</option><option value="15">15 秒</option><option value="30">30 秒</option></select></label>
+    </fieldset>
+    <div class="action-row"><button class="primary start-button" x-show="!running" @click="startRun()"><svg class="icon"><use href="#i-play"/></svg>开始测速</button><button class="primary stop-button" x-show="running" @click="stopRun()"><svg class="icon"><use href="#i-stop"/></svg>停止测速</button><button class="preview-button" @click="openModal('nodes')" :disabled="running"><svg class="icon"><use href="#i-list"/></svg>预览范围</button></div>
+    <p class="preview-summary" x-text="connected ? '当前匹配 '+candidates.length+' 个节点 · '+selectedSites.length+' 个网站' : '连接客户端后可预览节点范围'"></p>
+   </div>
+  </aside>
+  <section class="results" aria-labelledby="results-heading">
+   <div class="results-header"><h2 id="results-heading">测速结果</h2><button class="export-button" :disabled="!report||running" @click="openModal('export')"><svg class="icon"><use href="#i-download"/></svg>导出报告</button></div>
+   <nav class="tabs" x-ref="tabs" role="tablist" aria-label="按网站查看结果"><span class="tab-marker" :style="'left:'+tabLeft+'px;width:'+tabWidth+'px'"></span><template x-for="site in reportSites.length ? reportSites : [sites[0]]" :key="site.id"><button class="tab" role="tab" :aria-selected="activeSite===site.id" @click="activeSite=site.id" x-text="site.name"></button></template></nav>
+   <div class="result-scroll" aria-live="polite">
+    <div class="run-strip" x-show="running"><div class="strip-head"><strong>正在测速<span class="muted small"> · <span x-text="sites.find(s=>s.id===activeSite)?.name"></span></span></strong><button class="quiet" @click="stopRun()">停止</button></div><p>完成全部轮次后，为每个网站分别推荐节点。</p><div class="progress-track"><div class="progress-fill" :style="'transform:scaleX('+progress/total+')'"></div></div><div class="progress-meta"><span class="numeric" x-text="progress+' / '+total+' 次请求已完成'"></span><span>当前结果持续更新</span></div></div>
+    <div class="run-strip warning" x-show="screen==='stopped'"><div class="strip-head"><strong>测速已停止</strong><button class="quiet" @click="startRun()">重新测速</button></div><p x-text="report ? '本次任务未生成报告，下方保留上次完整结果。' : '本次任务未生成完整报告，可调整范围后重新测速。'"></p></div>
+    <div class="run-strip error" x-show="screen==='error'"><div class="strip-head"><strong>无法连接 Clash Verge Rev</strong><button class="quiet" @click="openModal('connection')">检查连接</button></div><p>请确认客户端正在运行，或在连接设置中选择内核和配置文件。</p></div>
+    <div class="recommendation" x-show="recommendation">
+     <div><div class="recommend-label"><svg class="icon" style="width:16px;height:16px"><use href="#i-check"/></svg><span x-text="screen==='stopped'?'上次完整报告的推荐':'本次推荐'"></span></div><h3 x-text="recommendation?.name"></h3><p>全部轮次成功 · <span x-text="recommendation?.successes"></span>/<span x-text="recommendation?.total"></span> 次通过</p></div>
+     <div class="recommend-metric numeric"><b x-text="recommendation?.median_ms.toFixed(1)" style="font-weight:600"></b><span>ms</span><p class="small muted" style="letter-spacing:0;text-align:right;margin-top:2px;font-weight:400">首字节中位数</p></div>
+    </div>
+    <div class="empty-state" x-show="!hasRows&&!running">
+     <template x-if="screen==='empty'"><div class="big-icon"><svg class="icon"><use href="#i-list"/></svg></div></template>
+     <template x-if="screen==='error'"><div class="big-icon"><svg class="icon"><use href="#i-plug"/></svg></div></template>
+     <div class="probe-diagram" x-show="screen!=='empty'&&screen!=='error'"><div class="server-stack"><span><i></i><i></i></span><span><i></i><i></i></span><span><i></i><i></i></span></div><span class="diagram-path"></span><div class="target-window"><svg class="icon"><use href="#i-globe"/></svg></div></div>
+     <h3 x-text="screen==='empty' ? '没有匹配的节点' : screen==='error' ? '连接客户端，读取节点' : screen==='stopped' ? '调整范围，重新开始' : '选择范围，开始第一次测速'"></h3>
+     <p x-text="screen==='empty' ? '试试扩大地区范围，或清空高级筛选条件。' : screen==='error' ? '完成连接后，即可选择网站与地区进行测速。' : '完成后，每个网站会得到独立排名与推荐。'"></p>
+     <button x-show="screen==='empty'" @click="regions=['jp','sg'];include='';exclude='';manualNodes=[];limit=0;screen='idle'">恢复默认范围</button>
+     <button x-show="screen==='error'" @click="refresh()">重新连接</button>
+    </div>
+    <div class="report-toolbar" x-show="hasRows"><span x-text="rows.length+' 条结果' + (report&&!running?' · 完整报告 '+report.time:'')"></span><span>成功率优先</span></div>
+    <div class="table-wrap">
+     <table class="result-table"><thead><tr><th :aria-sort="sort==='name'?(sortDirection===1?'ascending':'descending'):'none'"><button class="sort-header" @click="toggleSort('name')" aria-label="按节点名称排序">节点<span class="sort-arrow" x-show="sort==='name'" x-text="sortDirection===1?'↑':'↓'"></span></button></th><th>地区</th><th>成功率</th><th :aria-sort="sort==='latency'?(sortDirection===1?'ascending':'descending'):'none'"><button class="sort-header" @click="toggleSort('latency')" aria-label="按首字节耗时排序">首字节<span class="sort-arrow" x-show="sort==='latency'" x-text="sortDirection===1?'↑':'↓'"></span></button></th><th>波动</th></tr></thead><tbody>
+      <template x-for="(row,index) in rows" :key="row.id+'-'+row.site_id"><tr :class="{best:recommendation?.id===row.id,failed:row.successes<row.total}">
+       <td><div class="node-title"><span class="rank" x-text="index+1"></span><button class="node-button" @click="showDetail(row)" :title="row.name" x-text="row.name"></button></div><div class="node-provider" x-text="row.provider"></div></td>
+       <td x-text="regionName(row.region)"></td><td><span class="rate-badge numeric" :class="{partial:row.successes<row.total}" x-text="Math.round(row.successes/row.total*100)+'%'"></span><div class="small muted numeric" x-text="row.successes+'/'+row.total"></div></td><td class="numeric" x-text="ms(row.median_ms)"></td><td class="numeric" x-text="ms(row.jitter_ms)"></td>
+      </tr></template>
+     </tbody></table>
+     <div class="table-empty" x-show="!hasRows"><svg class="icon"><use href="#i-doc"/></svg><strong x-text="running ? '正在等待首组结果' : '尚无完整测速结果'"></strong><p x-show="screen==='idle'">请在左侧选择范围后，点击“开始测速”。</p></div>
+    </div>
+   </div>
+  </section>
+ </main>
+ <footer class="app-footer"><span><svg class="icon" style="width:16px;height:16px"><use href="#i-info"/></svg>地区依据节点名称识别 · 推荐不会切换主节点</span><span class="credit">设计规范：<a href="https://github.com/esthersjw/esther-design-system" target="_blank" rel="noreferrer">ESTHER不二</a> · CC BY-NC-SA 4.0</span></footer>
+ <dialog x-ref="dialog" :class="{wide:['sites','nodes','detail'].includes(modal)}" @cancel.prevent="closeModal()" @click="if($event.target===$refs.dialog)closeModal()" aria-labelledby="dialog-title">
+  <div class="dialog-header"><h2 id="dialog-title" x-text="modalTitle"></h2><button class="icon-button close-dialog" aria-label="关闭弹窗" @click="closeModal()"><svg class="icon"><use href="#i-close"/></svg></button></div>
+  <div class="dialog-body">
+   <section x-show="modal==='connection'">
+    <div class="segmented"><button :class="{active:connMode==='auto'}" @click="connMode='auto';modalError=''">自动发现</button><button :class="{active:connMode==='manual'}" @click="connMode='manual';modalError=''">手动配置</button></div>
+    <div x-show="connMode==='auto'"><div class="connection-detect"><div class="big-icon"><svg class="icon"><use href="#i-plug"/></svg></div><h3 x-text="detected?'已发现 Clash Verge Rev':'查找正在运行的 Clash 客户端'"></h3><p x-text="detected?'内核可用 · 本机控制接口已识别':'请保持 Clash Verge Rev 打开并运行代理内核。'"></p><button @click="detectConnection()"><svg class="icon"><use href="#i-refresh"/></svg><span x-text="detected?'重新检测':'检测客户端'"></span></button></div><dl class="key-values" x-show="detected"><dt>客户端</dt><dd>Clash Verge Rev</dd><dt>内核</dt><dd>Mihomo</dd><dt>控制接口</dt><dd>Windows named pipe</dd><dt>出站网卡</dt><dd>以太网</dd></dl></div>
+    <div class="connection-fields" x-show="connMode==='manual'"><p class="dialog-intro">优先自动发现。未找到客户端时，再指定实际生效的文件路径。</p><label class="field"><span>Mihomo 内核路径</span><div class="path-row"><input id="binary-path" x-model="connection.binary" placeholder="请选择 Mihomo 可执行文件"><button @click="browse('binary')">浏览</button></div></label><label class="field"><span>生效配置路径</span><div class="path-row"><input id="config-path" x-model="connection.config" placeholder="请选择当前生效的 YAML 配置"><button @click="browse('config')">浏览</button></div></label><label class="field"><span>内核工作目录</span><input x-model="connection.directory" placeholder="留空使用配置文件所在目录"><span class="hint">provider 的相对缓存路径以此目录为准。</span></label><div class="form-row"><label class="field"><span>控制器地址</span><input x-model="connection.controller" placeholder="http://127.0.0.1:9090"></label><label class="field"><span>出站物理网卡</span><input x-model="connection.interface" placeholder="自动识别，例如：以太网"></label></div><label class="field"><span>Windows named pipe</span><input x-model="connection.pipe" placeholder="留空从配置文件读取"><span class="hint">无需填写控制器密码或订阅令牌。</span></label></div>
+   </section>
+   <section x-show="modal==='sites'">
+    <div class="manager-toolbar"><p>选择轻量页面作为测试地址。</p><button class="primary add-site" @click="editSite()">＋ 添加网站</button></div>
+    <div class="remove-question" x-show="pendingDelete"><p>移除这个网站？已有测速报告会保留。</p><div><button @click="pendingDelete=''">保留</button><button class="danger" @click="removeSite(pendingDelete)">确认移除</button></div></div>
+    <ul class="site-management-list"><template x-for="site in sites" :key="site.id"><li class="site-management-row"><div><div class="site-name" x-text="site.name"></div><div class="site-url" x-text="site.url"></div><div class="site-code" x-text="'预期状态码：'+site.statuses.join(', ') + (site.locked?' · 专用 trace 校验':'')"></div></div><div class="site-actions"><button class="quiet" :disabled="!!site.locked" @click="editSite(site)" :aria-label="'编辑 '+site.name">编辑</button><button class="quiet danger" :disabled="!!site.locked" @click="pendingDelete=site.id" :aria-label="'移除 '+site.name">移除</button></div></li></template></ul>
+   </section>
+   <section x-show="modal==='site-edit'">
+    <form id="site-form" @submit.prevent="applySite()" novalidate><p class="dialog-intro">使用不需要登录、且不含私人凭据的 HTTP / HTTPS 地址。</p><label class="field"><span>网站名称</span><input x-ref="siteName" id="site-name" x-model="siteDraft.name" placeholder="例如：Notion" maxlength="80"></label><label class="field"><span>测试地址</span><input id="site-url" type="url" x-model="siteDraft.url" placeholder="https://www.notion.so/"></label><label class="field"><span>预期状态码</span><input id="site-statuses" x-model="siteDraft.statuses" placeholder="200, 204"><span class="hint">多个状态码用英文逗号分隔。</span></label></form>
+   </section>
+   <section x-show="modal==='nodes'">
+    <p class="dialog-intro">只显示符合当前地区、策略组与筛选条件的节点。未勾选时，测试全部匹配节点。</p>
+    <div class="node-search"><input id="node-search" x-model="nodeSearch" placeholder="搜索节点名称" aria-label="搜索节点名称"><span x-text="'匹配 '+matchedNodes.length+' 个节点'"></span></div>
+    <div class="node-list-actions"><span x-text="'已勾选 '+nodeDraft.length+' 个'"></span><div><button class="quiet" @click="selectVisible()">全选当前列表</button><button class="quiet" @click="nodeDraft=[]">清空勾选</button></div></div>
+    <div class="node-list"><template x-for="node in visibleNodes" :key="node.id"><label class="node-choice"><input type="checkbox" :value="node.id" x-model="nodeDraft" :aria-label="node.name"><span><span x-text="node.name"></span><small x-text="node.provider"></small></span><span class="region-label" x-text="regionName(node.region)"></span></label></template><div class="table-empty" x-show="!visibleNodes.length"><strong>没有找到匹配节点</strong><p>请调整搜索词或返回修改筛选条件。</p></div></div>
+   </section>
+   <section x-show="modal==='detail'">
+    <p class="detail-node" x-text="detailRow?.name"></p><p class="detail-meta"><span x-text="detailRow?.site_name"></span> · <span x-text="detailRow?.url"></span><br><span x-text="regionName(detailRow?.region)"></span> · <span x-text="detailRow?.provider"></span></p>
+    <div class="detail-metrics"><div><span>成功次数</span><strong x-text="detailRow?.successes+'/'+detailRow?.total"></strong></div><div><span>首字节中位数</span><strong x-text="ms(detailRow?.median_ms)"></strong></div><div><span>波动</span><strong x-text="ms(detailRow?.jitter_ms)"></strong></div></div>
+    <div class="detail-table-wrap"><table class="detail-table"><thead><tr><th>轮次</th><th>结果</th><th>状态码</th><th>首字节</th><th>总耗时</th><th>说明</th></tr></thead><tbody><template x-for="sample in detailRow?.samples || []" :key="sample.round"><tr><td class="numeric" x-text="sample.round"></td><td :class="sample.ok?'success':'failure'" x-text="sample.ok?'成功':'失败'"></td><td class="numeric" x-text="sample.status||'—'"></td><td class="numeric" x-text="ms(sample.ttfb_ms)"></td><td class="numeric" x-text="ms(sample.total_ms)"></td><td x-text="sample.reason"></td></tr></template></tbody></table></div>
+    <p class="small muted" style="margin-top:18px">首字节耗时不是 ping，也不代表模型生成速度。</p>
+   </section>
+   <section x-show="modal==='export'">
+    <p class="dialog-intro">导出这次完整测速报告，便于复测和比较。</p>
+    <div class="format-options"><label class="format-option"><input type="radio" value="csv" x-model="format" name="format"><span><strong>CSV 表格</strong><small>节点汇总，可使用 Excel 打开</small></span></label><label class="format-option"><input type="radio" value="json" x-model="format" name="format"><span><strong>JSON 完整报告</strong><small>包含各轮请求和失败原因</small></span></label></div>
+    <div class="export-summary"><span>测试网站</span><strong x-text="report?.sites.map(s=>s.name).join('、')"></strong></div><div class="export-summary"><span>节点 / 结果</span><span x-text="report?.nodes+' 个节点 / '+report?.rows.length+' 条结果'"></span></div>
+    <label class="toggle-line"><input type="checkbox" x-model="includeFailures">包含未通过全部轮次的节点</label><p class="small muted">报告包含节点名称与测试地址，不包含节点密码。</p>
+   </section>
+   <p class="form-error" x-show="modalError" x-text="modalError" role="alert"></p>
+  </div>
+  <div class="dialog-footer">
+   <template x-if="modal==='connection'&&connMode==='manual'"><div class="footer-note">留空字段按默认值处理。</div></template>
+   <template x-if="modal==='nodes'"><div class="footer-note" x-text="nodeDraft.length?'将测试 '+nodeDraft.length+' 个已选节点':'将测试全部匹配节点'"></div></template>
+   <button @click="modal==='site-edit' ? modal='sites' : closeModal()" x-text="['detail','sites'].includes(modal)?'关闭':'取消'"></button>
+   <button class="primary save-connection" x-show="modal==='connection'" @click="saveConnection()">保存连接</button>
+   <button class="primary" x-show="modal==='nodes'" @click="applyNodes()">应用范围</button>
+   <button class="primary save-site" type="submit" form="site-form" x-show="modal==='site-edit'">保存网站</button>
+   <button class="primary download-report" x-show="modal==='export'" @click="exportReport()"><svg class="icon"><use href="#i-download"/></svg>导出报告</button>
+  </div>
+ </dialog>
+ <div class="toast" :class="{error:toastError}" x-show="toast" x-transition.opacity role="status"><svg class="icon"><use :href="toastError?'#i-alert':'#i-check'"/></svg><span x-text="toast"></span></div>
+</div>
+</body>
+</html>
+
+

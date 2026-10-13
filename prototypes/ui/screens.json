@@ -1,0 +1,74 @@
+[
+  {
+    "state": "idle",
+    "file": "01-主界面.html",
+    "title": "主界面",
+    "description": "首次打开，选择网站、地区和节点范围。"
+  },
+  {
+    "state": "running",
+    "file": "02-测速中.html",
+    "title": "测速中",
+    "description": "显示请求进度、实时结果和停止操作。"
+  },
+  {
+    "state": "done",
+    "file": "03-测速结果.html",
+    "title": "测速结果",
+    "description": "按网站分别推荐，保留失败节点。"
+  },
+  {
+    "state": "stopped",
+    "file": "04-已取消.html",
+    "title": "已取消",
+    "description": "停止当前测速，继续显示上次完整报告。"
+  },
+  {
+    "state": "empty",
+    "file": "05-无匹配节点.html",
+    "title": "无匹配节点",
+    "description": "范围为空时引导恢复默认筛选条件。"
+  },
+  {
+    "state": "error",
+    "file": "06-连接失败.html",
+    "title": "连接失败",
+    "description": "呈现连接错误，并提供重试和设置入口。"
+  },
+  {
+    "state": "connection",
+    "file": "07-连接设置.html",
+    "title": "连接设置",
+    "description": "自动发现与手动路径配置。"
+  },
+  {
+    "state": "sites",
+    "file": "08-网站管理.html",
+    "title": "网站管理",
+    "description": "查看、编辑、添加和移除测试网站。"
+  },
+  {
+    "state": "site-edit",
+    "file": "09-添加编辑网站.html",
+    "title": "添加 / 编辑网站",
+    "description": "名称、HTTP 地址和状态码校验。"
+  },
+  {
+    "state": "nodes",
+    "file": "10-节点选择.html",
+    "title": "节点选择",
+    "description": "搜索、批量勾选和预览匹配节点。"
+  },
+  {
+    "state": "detail",
+    "file": "11-请求详情.html",
+    "title": "请求详情",
+    "description": "每轮请求的状态码、耗时与失败原因。"
+  },
+  {
+    "state": "export",
+    "file": "12-导出报告.html",
+    "title": "导出报告",
+    "description": "CSV / JSON 格式与失败行选择。"
+  }
+]
