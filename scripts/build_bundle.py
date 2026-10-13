@@ -13,7 +13,8 @@ parser=argparse.ArgumentParser()
 parser.add_argument('--flutter',default='flutter')
 args=parser.parse_args()
 target='windows' if os.name=='nt' else 'macos'
-subprocess.run([args.flutter,'build',target,'--release','--no-pub'],
+flutter_binary=shutil.which(args.flutter) or args.flutter
+subprocess.run([flutter_binary,'build',target,'--release','--no-pub'],
     cwd=ROOT/'desktop',check=True)
 subprocess.run([sys.executable,'-m','PyInstaller','--noconfirm','--onedir',
     '--console','--name','probe-engine','--hidden-import','engine',
