@@ -105,7 +105,8 @@ class SourceTests(unittest.TestCase):
         config.write_bytes(encoded({'proxy-providers': {'local': {'type': 'file', 'path': cache.name}}}))
         result = self.app.import_source({'source': {'type': 'file', 'location': str(config)}})
         self.assertEqual(result['catalog']['nodes'][0]['provider'], 'local')
-        self.assertEqual(self.app.sources.connection(self.app.settings['source'], {})['core_dir'], str(self.folder))
+        core_dir = Path(self.app.sources.connection(self.app.settings['source'], {})['core_dir'])
+        self.assertTrue(core_dir.samefile(self.folder))
 
     def test_invalid_import_preserves_previous_source_settings_and_report(self):
         config = self.folder / 'config.json'

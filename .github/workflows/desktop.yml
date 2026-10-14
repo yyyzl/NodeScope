@@ -51,7 +51,7 @@ jobs:
         run: flutter analyze --no-pub
         working-directory: desktop
       - name: Flutter tests
-        run: flutter test --no-pub --timeout 60s
+        run: python -c "import shutil,subprocess; subprocess.run([shutil.which('flutter'),'test','--no-pub','--timeout','60s'],timeout=60,check=True)"
         working-directory: desktop
       - name: Build application bundle
         run: python scripts/build_bundle.py
