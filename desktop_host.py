@@ -16,12 +16,13 @@ def dispatch(app, command, payload):
         result.pop('csrf', None)
         return result
     if command in ('catalog', 'preview'):
-        connection = app.normalize_connection(payload.get('connection', app.settings['connection']))
-        catalog = app.engine.catalog(connection)
+        catalog = app.catalog(payload)
         if command == 'preview':
             nodes = app.engine.filter_nodes(catalog, payload.get('options', app.settings['options']))
             return {'nodes': nodes, 'count': len(nodes), 'warnings': catalog['warnings']}
         return catalog
+    if command == 'import_source':
+        return app.import_source(payload)
     if command == 'settings':
         return app.save_settings(payload)
     if command == 'start':

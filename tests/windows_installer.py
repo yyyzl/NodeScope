@@ -7,6 +7,7 @@ import subprocess
 import sys
 import uuid
 import winreg
+from tls_fixture import certificate
 
 ROOT = Path(__file__).resolve().parents[1]
 REGISTRY_KEY = r'Software\Microsoft\Windows\CurrentVersion\Uninstall\{998697B5-563B-49EA-A210-C680D490DB28}_is1'
@@ -60,8 +61,10 @@ def run():
         subprocess.run(command + [f'/LOG={folder / "upgrade.log"}'],
                        check=True, timeout=60)
         assert digest(marker) == marker_hash
+        cert, key = certificate(folder)
         environment = dict(os.environ,
                            NODESCOPE_ENGINE_BINARY=str(installed / 'engine/probe-engine/probe-engine.exe'),
+                           NODESCOPE_TEST_CERT=str(cert), NODESCOPE_TEST_KEY=str(key),
                            PATH=str(Path(os.environ['SystemRoot']) / 'System32'))
         # 从含中文和空格的安装路径运行，且不依赖开发机 PATH。
         subprocess.run([sys.executable, str(ROOT / 'tests/packaged_engine.py')],

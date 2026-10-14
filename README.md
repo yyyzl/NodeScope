@@ -18,9 +18,17 @@ Windows：双击 **NodeScope-Setup.exe**，按中文向导安装。默认安装�
 macOS：使用与 CPU 架构匹配的 macOS ZIP，解压后打开 NodeScope.app。
 当前构建为 ad-hoc 签名，尚未做 Apple Developer 签名与公证。
 
-先打开 Clash Verge Rev 并运行代理内核，再刷新节点、选择范围并开始测速。
-自动发现失败时，在连接设置中选择内核、生效配置及其工作目录。
-应用不包含订阅，不下载机场配置。
+点击“导入节点”，粘贴自己的 Clash/Mihomo 订阅 URL，或选择 YAML / JSON 配置文件。
+导入后预览节点、选择网站与地区，再开始测速。安装包自带固定版本 Mihomo，
+无需预先安装或打开代理客户端。应用不提供预置订阅。
+
+配置引用其他 HTTP 节点来源时，界面先列出来源，勾选允许获取后再导入。
+订阅目前直连获取；链接不可达时可导入已下载的配置文件。
+本版本支持 YAML / JSON，暂不支持 URI / Base64 订阅。
+“刷新节点”会重新获取当前订阅或读取当前文件；重新打开应用使用上次的本机快照。
+
+已有 Clash Verge Rev 用户仍可在连接设置中自动发现客户端，读取生效配置与缓存。
+自动发现失败时，手动选择内核、生效配置及其工作目录。
 
 ## 功能
 
@@ -32,19 +40,26 @@ macOS：使用与 CPU 架构匹配的 macOS ZIP，解压后打开 NodeScope.app�
 - 点击首字节表头排序；只有全部轮次成功的节点进入推荐。
 - 取消不覆盖上次完整报告；导出 CSV / JSON。
 
-界面以 prototypes/ui/index.html 的已确认原型为基准，左右栏自然展开，
-只使用窗口整体滚动，避免固定高度把结果压成狭小区域。
+界面沿用 prototypes/ui/index.html 的配色和组件。宽窗口下顶部入口固定，
+左侧筛选与右侧结果各自滚动，测试参数和开始 / 停止按钮固定在左侧底部；
+滚动长结果不会带走左侧设置。
+窄窗口按上下顺序排列，并使用整体滚动。
 
 ## 引擎和安全边界
 
 Flutter 通过私有 stdin/stdout 管道启动随包提供的 Python 引擎，
 不会打开外部浏览器或新增本地 Web 服务。
-引擎读取主客户端配置和已有缓存，启动独立临时 Mihomo，不修改主配置、
+订阅和文件在本机解析，只提取节点、节点来源、策略组及必要 TLS 设置，
+主配置中的规则、TUN、控制器和脚本不带入测速内核。
+节点快照和带令牌的来源设置只保存到用户私有数据目录，不写入测速报告。
+远程订阅不能引用本机证书或本机文件；下载限制为总共 32 MiB、最多 20 个来源。
+客户端模式仍只读取生效配置及缓存，不更新客户端订阅、不修改主配置、
 不切换主节点、不关闭主客户端。Windows 支持只读 named pipe 控制接口。
 
 地区来自节点名称，不是 IP 地理定位。ChatGPT 默认测试 trace 端点，
 不测模型生成速度、不验证账号业务、不读取浏览器或 Codex 凭据。
-Windows 使用系统 curl；macOS 使用本机 curl；Mihomo 来自用户客户端。
+Windows 使用系统 curl；macOS 使用本机 curl；订阅和文件模式使用自带 Mihomo v1.19.32。
+客户端模式保留用户现有内核的行为。
 普通退出、取消和窗口关闭会清理探针子进程。Windows Job Object 补充异常退出回收。
 强制断电等中断可能留下用户私有数据目录中的临时文件。
 
@@ -58,6 +73,8 @@ macOS 用户的 Library/Application Support/NodeScope。
 Python 引擎仍在项目根目录。当前使用 Flutter 3.47.7。
 
     python -m pip install -r requirements.txt pyinstaller
+    python scripts/download_test_core.py
+    python scripts/run_engine_tests.py
     cd desktop
     flutter pub get
     flutter analyze --no-pub
@@ -72,9 +89,10 @@ scripts/prepare_windows_links.ps1 创建项目内插件目录联接，
 该脚本会再次执行 pub get 完成插件注册，再使用 --no-pub 编译；
 使用 -Flutter 参数指定 SDK 路径。脚本不更改系统开发者模式。
 
-scripts/download_test_core.py 下载固定官方测试内核并校验摘要。
+scripts/download_test_core.py 下载固定官方内核并校验摘要，供测试与发行包共用。
+scripts/run_engine_tests.py 按文件执行全部 Python 回归，每个后台进程最多 60 秒。
 tests/packaged_engine.py 在打包的引擎进程中验证真实 Mihomo、
-两个本地网站、成功/失败行、各站独立推荐、导出、取消与 EOF 清理。
+两个本地网站、成功/失败行、各站独立推荐、URL / 文件独立测速、导出、取消与 EOF 清理。
 这些服务是隔离测试夹具，不是公网节点测速成绩。
 
 Windows 安装器使用 Inno Setup 6.7.3。build_installer.py 从官方固定版本下载
@@ -85,6 +103,10 @@ tests/windows_installer.py 在全新测试目录验证完整文件、开始菜�
 
 Git 流程：独立功能分支先通过 Windows / macOS 构建和测试，然后创建 PR，
 再次核对该提交的检查结果，最后合入 master。工作流见 .github/workflows/desktop.yml。
+默认构建 Windows、Apple Silicon macOS 和 Intel macOS 三个平台。
+推送 v* 标签或在 GitHub 发布该版本 Release 时，所有平台通过后自动附加安装器、
+三个 ZIP 和 SHA256SUMS.txt 到 Release。
+scripts/prepare_release.py 会拒绝缺少任一平台附件的发布。
 
 ## 授权
 

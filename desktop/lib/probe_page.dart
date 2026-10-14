@@ -13,6 +13,15 @@ class ProbePage extends StatefulWidget {
 
 class _ProbePageState extends State<ProbePage> {
   bool advanced = false;
+  final _settingsScroll = ScrollController();
+  final _resultsScroll = ScrollController();
+  @override
+  void dispose() {
+    _settingsScroll.dispose();
+    _resultsScroll.dispose();
+    super.dispose();
+  }
+
   ProbeController get c => widget.controller;
   void toast(String message) {
     if (!mounted) return;
@@ -28,24 +37,54 @@ class _ProbePageState extends State<ProbePage> {
       body: LayoutBuilder(
         builder: (context, constraints) {
           final desktop = constraints.maxWidth >= 900;
-          return SingleChildScrollView(
-            child: Center(
+          if (desktop) {
+            return Center(
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 1560),
                 child: Padding(
-                  padding: EdgeInsets.symmetric(horizontal: desktop ? 28 : 18),
+                  padding: const EdgeInsets.symmetric(horizontal: 28),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       _header(),
                       _connectionBar(),
                       const SizedBox(height: 20),
-                      if (c.ready)
-                        desktop
+                      Expanded(
+                        child: c.ready
                             ? Row(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  SizedBox(width: 350, child: _configuration()),
+                                  SizedBox(
+                                    width: 350,
+                                    child: Column(
+                                      children: [
+                                        Expanded(
+                                          child: Scrollbar(
+                                            controller: _settingsScroll,
+                                            child: SingleChildScrollView(
+                                              key: const Key('settings-scroll'),
+                                              controller: _settingsScroll,
+                                              padding: const EdgeInsets.only(
+                                                bottom: 24,
+                                                right: 10,
+                                              ),
+                                              child: _configuration(
+                                                includeActions: false,
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                        const Divider(height: 24),
+                                        Padding(
+                                          padding: const EdgeInsets.only(
+                                            right: 10,
+                                            bottom: 18,
+                                          ),
+                                          child: _samplingAndActions(),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
                                   const SizedBox(width: 24),
                                   Expanded(
                                     child: Container(
@@ -55,19 +94,61 @@ class _ProbePageState extends State<ProbePage> {
                                           left: BorderSide(color: border),
                                         ),
                                       ),
-                                      child: _results(),
+                                      child: Scrollbar(
+                                        controller: _resultsScroll,
+                                        child: SingleChildScrollView(
+                                          key: const Key('results-scroll'),
+                                          controller: _resultsScroll,
+                                          padding: const EdgeInsets.only(
+                                            bottom: 24,
+                                            right: 10,
+                                          ),
+                                          child: Column(
+                                            children: [
+                                              _results(),
+                                              const SizedBox(height: 30),
+                                              _footer(),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
                                     ),
                                   ),
                                 ],
                               )
-                            : Column(
-                                children: [
-                                  _configuration(),
-                                  const SizedBox(height: 28),
-                                  const Divider(),
-                                  _results(),
-                                ],
-                              )
+                            : Center(
+                                child: c.error.isEmpty
+                                    ? const CircularProgressIndicator()
+                                    : _notice(c.error, failure: true),
+                              ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          }
+          return SingleChildScrollView(
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 1560),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 18),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _header(),
+                      _connectionBar(),
+                      const SizedBox(height: 20),
+                      if (c.ready)
+                        Column(
+                          children: [
+                            _configuration(),
+                            const SizedBox(height: 28),
+                            const Divider(),
+                            _results(),
+                          ],
+                        )
                       else if (c.error.isEmpty)
                         const Padding(
                           padding: EdgeInsets.all(60),
@@ -110,7 +191,7 @@ class _ProbePageState extends State<ProbePage> {
           mainAxisSize: MainAxisSize.min,
           children: [
             TextButton(
-              onPressed: c.running || !c.ready
+              onPressed: c.running || c.busy || !c.ready
                   ? null
                   : () async {
                       if (await c.save()) toast('网站与筛选设置已保存');
@@ -119,7 +200,7 @@ class _ProbePageState extends State<ProbePage> {
             ),
             const SizedBox(width: 6),
             OutlinedButton.icon(
-              onPressed: c.running || !c.ready
+              onPressed: c.running || c.busy || !c.ready
                   ? null
                   : () => showConnectionDialog(context, c),
               icon: const Icon(Icons.settings_outlined, size: 18),
@@ -151,16 +232,22 @@ class _ProbePageState extends State<ProbePage> {
               spacing: 12,
               runSpacing: 5,
               children: [
-                const Text(
-                  'Clash Verge Rev',
-                  style: TextStyle(fontWeight: FontWeight.w600),
+                Text(
+                  c.source['type'] == 'url'
+                      ? '订阅链接'
+                      : c.source['type'] == 'file'
+                      ? '配置文件'
+                      : c.catalog == null
+                      ? '节点来源'
+                      : 'Clash Verge Rev',
+                  style: const TextStyle(fontWeight: FontWeight.w600),
                 ),
                 Text(
                   c.busy
                       ? '正在读取节点…'
                       : connected
                       ? '已连接 · $count 个可测节点'
-                      : '待连接 · 请刷新节点',
+                      : '请导入节点，或连接客户端',
                   style: TextStyle(
                     fontSize: 13,
                     color: connected ? green : muted,
@@ -173,7 +260,13 @@ class _ProbePageState extends State<ProbePage> {
           OutlinedButton.icon(
             onPressed: c.busy || c.running || !c.ready
                 ? null
-                : c.refreshCatalog,
+                : () => showSourceDialog(context, c),
+            icon: const Icon(Icons.add_link, size: 18),
+            label: const Text('导入节点'),
+          ),
+          const SizedBox(width: 8),
+          OutlinedButton.icon(
+            onPressed: c.busy || c.running || !c.ready ? null : c.refreshSource,
             icon: c.busy
                 ? const SizedBox(
                     width: 16,
@@ -206,109 +299,127 @@ class _ProbePageState extends State<ProbePage> {
     ],
   );
 
-  Widget _configuration() => IgnorePointer(
-    ignoring: c.running || c.busy,
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _sectionTitle(
-          '01',
-          '测试目标',
-          TextButton(
-            onPressed: () => showSitesDialog(context, c),
-            child: const Text('管理网站 ›'),
-          ),
-        ),
-        const SizedBox(height: 10),
-        Wrap(
-          spacing: 12,
-          runSpacing: 0,
-          children: c.sites.map((site) {
-            final id = site['id'].toString();
-            return SizedBox(
-              width: 160,
-              child: InkWell(
-                onTap: () => c.toggleSite(id),
-                child: Row(
-                  children: [
-                    Checkbox(
-                      value: c.selectedSites.contains(id),
-                      visualDensity: VisualDensity.compact,
-                      onChanged: (_) => c.toggleSite(id),
+  Widget _configuration({bool includeActions = true}) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      IgnorePointer(
+        ignoring: c.running || c.busy,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _sectionTitle(
+              '01',
+              '测试目标',
+              TextButton(
+                onPressed: () => showSitesDialog(context, c),
+                child: const Text('管理网站 ›'),
+              ),
+            ),
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 12,
+              runSpacing: 0,
+              children: c.sites.map((site) {
+                final id = site['id'].toString();
+                return SizedBox(
+                  width: 160,
+                  child: InkWell(
+                    onTap: () => c.toggleSite(id),
+                    child: Row(
+                      children: [
+                        Checkbox(
+                          value: c.selectedSites.contains(id),
+                          visualDensity: VisualDensity.compact,
+                          onChanged: (_) => c.toggleSite(id),
+                        ),
+                        Flexible(child: Text(site['name'].toString())),
+                      ],
                     ),
-                    Flexible(child: Text(site['name'].toString())),
-                  ],
-                ),
+                  ),
+                );
+              }).toList(),
+            ),
+            const SizedBox(height: 20),
+            _sectionTitle(
+              '02',
+              '节点范围',
+              TextButton(
+                onPressed: () => c.setOption('regions', <String>[]),
+                child: const Text('全部地区'),
               ),
-            );
-          }).toList(),
+            ),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: c.regions.map((region) {
+                final id = region['id'].toString();
+                final selected = (c.options['regions'] as List).contains(id);
+                return FilterChip(
+                  label: Text(
+                    region['name'].toString(),
+                    style: const TextStyle(fontSize: 13),
+                  ),
+                  selected: selected,
+                  selectedColor: yellowTint,
+                  backgroundColor: paper,
+                  side: BorderSide(
+                    color: selected ? const Color(0xffebd373) : border,
+                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  onSelected: (_) => c.toggleRegion(id),
+                );
+              }).toList(),
+            ),
+            const SizedBox(height: 18),
+            _scopeSelect('策略组', 'group', [
+              for (final item in (c.catalog?['groups'] as List? ?? []))
+                (item as Map)['name'].toString(),
+            ], '全部策略组'),
+            const SizedBox(height: 12),
+            _scopeSelect(
+              '来源',
+              'provider',
+              List<String>.from(c.catalog?['providers'] as List? ?? []),
+              '全部来源',
+            ),
+            const SizedBox(height: 10),
+            TextButton(
+              onPressed: () => setState(() => advanced = !advanced),
+              style: TextButton.styleFrom(
+                foregroundColor: ink,
+                padding: const EdgeInsets.symmetric(vertical: 10),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text('高级筛选'),
+                  Icon(
+                    advanced ? Icons.expand_more : Icons.chevron_right,
+                    size: 17,
+                  ),
+                ],
+              ),
+            ),
+            if (advanced) ..._advancedFields(),
+          ],
         ),
-        const SizedBox(height: 20),
-        _sectionTitle(
-          '02',
-          '节点范围',
-          TextButton(
-            onPressed: () => c.setOption('regions', <String>[]),
-            child: const Text('全部地区'),
-          ),
-        ),
+      ),
+      if (includeActions) ...[
+        const SizedBox(height: 16),
+        const Divider(),
         const SizedBox(height: 12),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: c.regions.map((region) {
-            final id = region['id'].toString();
-            final selected = (c.options['regions'] as List).contains(id);
-            return FilterChip(
-              label: Text(
-                region['name'].toString(),
-                style: const TextStyle(fontSize: 13),
-              ),
-              selected: selected,
-              selectedColor: yellowTint,
-              backgroundColor: paper,
-              side: BorderSide(
-                color: selected ? const Color(0xffebd373) : border,
-              ),
-              padding: const EdgeInsets.symmetric(horizontal: 4),
-              onSelected: (_) => c.toggleRegion(id),
-            );
-          }).toList(),
-        ),
-        const SizedBox(height: 18),
-        _scopeSelect('策略组', 'group', [
-          for (final item in (c.catalog?['groups'] as List? ?? []))
-            (item as Map)['name'].toString(),
-        ], '全部策略组'),
-        const SizedBox(height: 12),
-        _scopeSelect(
-          '来源',
-          'provider',
-          List<String>.from(c.catalog?['providers'] as List? ?? []),
-          '全部来源',
-        ),
-        const SizedBox(height: 10),
-        TextButton(
-          onPressed: () => setState(() => advanced = !advanced),
-          style: TextButton.styleFrom(
-            foregroundColor: ink,
-            padding: const EdgeInsets.symmetric(vertical: 10),
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text('高级筛选'),
-              Icon(
-                advanced ? Icons.expand_more : Icons.chevron_right,
-                size: 17,
-              ),
-            ],
-          ),
-        ),
-        if (advanced) ..._advancedFields(),
-        const SizedBox(height: 16), const Divider(),
-        const SizedBox(height: 12),
-        Row(
+        _samplingAndActions(),
+      ],
+    ],
+  );
+
+  Widget _samplingAndActions() => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      IgnorePointer(
+        ignoring: c.running || c.busy,
+        child: Row(
           children: [
             Expanded(child: _sampling('测试轮次', 'rounds', [1, 3, 5, 10], '轮')),
             const SizedBox(width: 10),
@@ -319,33 +430,42 @@ class _ProbePageState extends State<ProbePage> {
             Expanded(child: _sampling('超时时间', 'timeout', [5, 8, 15, 30], '秒')),
           ],
         ),
-        const SizedBox(height: 16),
-        // 停止按钮独立响应，不受配置区 IgnorePointer 影响。
-        if (!c.running)
-          Row(
-            children: [
-              Expanded(
-                child: FilledButton.icon(
-                  onPressed: c.busy ? null : c.start,
-                  icon: const Icon(Icons.play_arrow, size: 20),
-                  label: const Text('开始测速', style: TextStyle(fontSize: 16)),
-                ),
+      ),
+      const SizedBox(height: 16),
+      // 停止按钮独立响应，不受配置区 IgnorePointer 影响。
+      if (!c.running)
+        Row(
+          children: [
+            Expanded(
+              child: FilledButton.icon(
+                onPressed: c.busy ? null : c.start,
+                icon: const Icon(Icons.play_arrow, size: 20),
+                label: const Text('开始测速', style: TextStyle(fontSize: 16)),
               ),
-              const SizedBox(width: 10),
-              OutlinedButton.icon(
-                onPressed: c.busy ? null : () => showNodesDialog(context, c),
-                icon: const Icon(Icons.list, size: 20),
-                label: const Text('预览范围'),
-              ),
-            ],
+            ),
+            const SizedBox(width: 10),
+            OutlinedButton.icon(
+              onPressed: c.busy ? null : () => showNodesDialog(context, c),
+              icon: const Icon(Icons.list, size: 20),
+              label: const Text('预览范围'),
+            ),
+          ],
+        )
+      else
+        SizedBox(
+          width: double.infinity,
+          child: FilledButton.icon(
+            onPressed: c.stopping ? null : c.stop,
+            icon: const Icon(Icons.stop, size: 20),
+            label: Text(c.stopping ? '正在停止…' : '停止测速'),
           ),
-        const SizedBox(height: 10),
-        Text(
-          c.catalog == null ? '连接客户端后可预览节点范围' : '已读取节点清单 · 地区和其他筛选取交集',
-          style: const TextStyle(fontSize: 13, color: muted),
         ),
-      ],
-    ),
+      const SizedBox(height: 10),
+      Text(
+        c.catalog == null ? '导入节点或连接客户端后可预览范围' : '已读取节点清单 · 地区和其他筛选取交集',
+        style: const TextStyle(fontSize: 13, color: muted),
+      ),
+    ],
   );
 
   Widget _scopeSelect(
