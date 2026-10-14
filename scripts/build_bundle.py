@@ -7,6 +7,7 @@ import platform
 import shutil
 import subprocess
 import sys
+import tempfile
 import zipfile
 from download_test_core import download_core
 
@@ -57,8 +58,8 @@ shutil.copy2(ca_bundle,core/'cacert.pem')
 shutil.copy2(ROOT/'third_party/certifi/LICENSE',core/'CA-LICENSE')
 for name in ('README.md','THIRD_PARTY_NOTICES.md'):
     shutil.copy2(ROOT/name,output/name)
-archive=output.with_suffix('.zip')
 if os.name=='nt':
+    archive=output.with_suffix('.zip')
     with zipfile.ZipFile(archive,'w',zipfile.ZIP_DEFLATED) as bundle:
         for entry in sorted(output.rglob('*')):
             if entry.is_file():
@@ -71,6 +72,14 @@ else:
         '--entitlements',str(ROOT/'desktop/macos/Runner/Release.entitlements'),
         '--timestamp=none',str(app)],check=True)
     subprocess.run(['codesign','--verify','--deep','--strict',str(app)],check=True)
-    subprocess.run(['ditto','-c','-k','--sequesterRsrc','--keepParent',
-        str(output),str(archive)],check=True)
+    archive=output.with_suffix('.dmg')
+    with tempfile.TemporaryDirectory(prefix='nodescope-dmg-') as directory:
+        staging=Path(directory)
+        subprocess.run(['ditto',str(app),str(staging/'NodeScope.app')],check=True)
+        (staging/'Applications').symlink_to('/Applications',target_is_directory=True)
+        for name in ('README.md','THIRD_PARTY_NOTICES.md'):
+            shutil.copy2(output/name,staging/name)
+        subprocess.run(['hdiutil','create','-volname','NodeScope',
+            '-srcfolder',str(staging),'-fs','HFS+','-format','UDZO','-ov',
+            str(archive)],check=True)
 print('已生成 '+str(archive))

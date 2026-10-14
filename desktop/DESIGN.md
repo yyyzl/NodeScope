@@ -4,7 +4,7 @@
 
 在 Windows / macOS 原生 Flutter 窗口中复用现有测速引擎，保持已确认的 HTML
 界面、网站范围选择和真实结果。Windows 默认交付 EXE 安装器，同时保留便携 ZIP；
-macOS 交付原生应用 ZIP。暂不增加托盘和自动换节点。
+macOS 交付原生应用 DMG，通过 Applications 快捷方式支持拖放安装。暂不增加托盘和自动换节点。
 
 ## 架构
 
@@ -52,6 +52,8 @@ Windows 安装器尚无代码签名证书。
 Flutter analyze、controller/widget 测试、已有 Python 回归、
 打包后真实 Mihomo 本地 HTTP 集成，以及 Windows 实际窗口运行验证。
 Windows 安装包另验证完整资源、开始菜单、覆盖安装、已安装引擎和卸载数据保护。
+macOS 另验证 DMG 完整性、只读挂载、复制安装、卸载后的签名与 CPU 架构，
+再从测试安装目录运行包内真实测速引擎；每个后台验证进程上限为 60 秒。
 新增导入失败恢复、provider 下载确认、URL / 文件无需客户端的真实内核测试，
 以及长报告滚动时左侧位置保持不变的窗口测试。
 GitHub Actions 分别编译 Windows 与 macOS，分支检查通过后才提交和合并 PR。
@@ -66,3 +68,6 @@ GitHub Actions 分别编译 Windows 与 macOS，分支检查通过后才提交�
 2026-10-14：增加独立订阅 / 文件测速、自带固定内核和私有节点快照，降低客户端依赖。
 根据用户反馈，宽窗口改为设置与结果独立滚动。增加 Apple Silicon / Intel 两种 macOS
 构建，并在 v* 标签构建全部通过后自动发布完整平台附件，修复只上传 Actions 产物的问题。
+
+2026-10-15：按用户要求改为 macOS DMG 发行，分别提供 Apple Silicon 和 Intel 包。
+使用系统 hdiutil，无新增全局依赖；保留现有应用 ad-hoc 签名及 Apple 公证限制。

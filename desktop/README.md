@@ -9,6 +9,7 @@ probe_controller.dart 和 engine_bridge.dart。各类设置与详情位于 probe
 安装 Flutter 3.47.7 后，在此目录执行 flutter pub get、flutter analyze
 和 flutter test --timeout 60s。发布包从根目录执行 scripts/build_bundle.py。
 Windows 再执行 scripts/build_installer.py，生成可直接安装的 NodeScope-Setup.exe。
+macOS 生成与当前 CPU 架构匹配的 DMG，用户打开后将 NodeScope 拖到 Applications 安装。
 开发运行可传 --engine-python 和 --engine-script 明确指定已有 Python 与
 desktop_host.py；发布程序自动使用随包引擎。
 

@@ -57,8 +57,13 @@ jobs:
         working-directory: desktop
       - name: Build application bundle
         run: python scripts/build_bundle.py
+      - name: macOS DMG mount and installation smoke test
+        if: matrix.platform != 'Windows'
+        run: python -c "import subprocess,sys; subprocess.run([sys.executable,'tests/macos_dmg.py'],timeout=60,check=True)"
       - name: Frozen engine smoke test
         if: matrix.platform != 'Windows'
+        env:
+          NODESCOPE_ENGINE_BINARY: ${{ github.workspace }}/work/dmg-install/Applications/NodeScope.app/Contents/Resources/engine/probe-engine/probe-engine
         run: python -c "import subprocess,sys; subprocess.run([sys.executable,'tests/packaged_engine.py'],timeout=60,check=True)"
       - name: Build Windows installer
         if: matrix.platform == 'Windows'
@@ -71,6 +76,7 @@ jobs:
           name: NodeScope-${{ matrix.platform }}
           path: |
             dist/*.zip
+            dist/*.dmg
             dist/NodeScope-Setup.exe
           if-no-files-found: error
   release:
@@ -95,7 +101,7 @@ jobs:
           files: |
             work/release/NodeScope-Setup.exe
             work/release/NodeScope-Windows-x64.zip
-            work/release/NodeScope-macOS-arm64.zip
-            work/release/NodeScope-macOS-x86_64.zip
+            work/release/NodeScope-macOS-arm64.dmg
+            work/release/NodeScope-macOS-x86_64.dmg
             work/release/SHA256SUMS.txt
           fail_on_unmatched_files: true
