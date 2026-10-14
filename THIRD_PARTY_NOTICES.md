@@ -6,6 +6,9 @@
 - Flutter、Dart 及 Flutter 官方插件：BSD 风格许可证，以各依赖的 LICENSE 为准。
 - window_manager / screen_retriever：以随依赖提供的 MIT LICENSE 为准。
 - Python：PSF 许可证；PyYAML：MIT 许可证。
+- HTTPS 订阅的 Mozilla 公共根证书来自 certifi 2026.7.22（MPL-2.0），
+  原许可证保存在引擎旁的 core/CA-LICENSE；不包含用户的系统证书或私钥。
+  来源：https://github.com/certifi/python-certifi/tree/f4bc676bc101fe2235846e37044e8c693d6cbaf4
 - PyInstaller：GPL 及其引导程序分发例外，以 PyInstaller 原项目许可证为准。
 - Windows 包包含 Visual Studio 可再分发的 Visual C++ Runtime DLL，
   按 Microsoft Visual Studio 分发条款使用。

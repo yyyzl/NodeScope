@@ -4,6 +4,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
 from pathlib import Path
 import sys
+import ssl
 import tempfile
 import threading
 import unittest
@@ -16,13 +17,14 @@ import engine
 import node_sources
 from server import App
 from scripts.prepare_release import REQUIRED_ASSETS, prepare
+from tls_fixture import certificate
 
 NODE = {'name': '日本 fixture', 'type': 'http', 'server': '127.0.0.1', 'port': 1234,
         'password': 'PRIVATE_NODE_PASSWORD'}
 
 
 @contextmanager
-def subscription_server(routes):
+def subscription_server(routes, tls=None):
     calls = []
     class Handler(BaseHTTPRequestHandler):
         def log_message(self, *args):
@@ -37,10 +39,12 @@ def subscription_server(routes):
             self.end_headers()
             self.wfile.write(content)
     server = ThreadingHTTPServer(('127.0.0.1', 0), Handler)
+    if tls:
+        server.socket = tls.wrap_socket(server.socket, server_side=True)
     thread = threading.Thread(target=lambda: server.serve_forever(poll_interval=.01), daemon=True)
     thread.start()
     try:
-        yield f'http://127.0.0.1:{server.server_port}', calls
+        yield f'{"https" if tls else "http"}://127.0.0.1:{server.server_port}', calls
     finally:
         server.shutdown()
         server.server_close()
@@ -81,6 +85,22 @@ class SourceTests(unittest.TestCase):
             restored = App(self.app.data_dir)
             self.assertEqual(len(desktop_host.dispatch(restored, 'catalog', {})['nodes']), 1)
             self.assertEqual(len(calls), 1)
+
+    def test_https_checks_certificate_and_accepts_only_trusted_local_fixture(self):
+        cert, key = certificate(self.folder)
+        tls = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+        tls.load_cert_chain(str(cert), str(key))
+        with subscription_server({'/sub': (200, encoded({'proxies': [NODE]}), {})}, tls) as (url, calls):
+            with self.assertRaises(ValueError):
+                self.app.import_source({'source': {'type': 'url', 'location': url + '/sub'}})
+            self.assertEqual(calls, [])
+            with patch.object(node_sources, 'trust_bundle', return_value=cert):
+                result = self.app.import_source({'source': {'type': 'url', 'location': url + '/sub'}})
+            self.assertEqual(len(result['catalog']['nodes']), 1)
+            self.assertEqual(len(calls), 1)
+
+    def test_portable_public_ca_bundle_is_loaded(self):
+        self.assertGreater(len(node_sources.subscription_tls().get_ca_certs()), 100)
 
     def test_remote_providers_require_explicit_download_and_keep_overrides(self):
         config = {'proxy-providers': {'source-a': {'type': 'http', 'url': '/nodes',

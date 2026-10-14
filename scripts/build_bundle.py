@@ -1,5 +1,6 @@
 """打包 Flutter 窗口与原 Python 引擎，发布目录无需安装 Python。"""
 import argparse
+import hashlib
 import os
 from pathlib import Path
 import platform
@@ -49,6 +50,11 @@ core=engine/'core'
 core.mkdir(exist_ok=True)
 shutil.copy2(download_core(),core/('mihomo.exe' if os.name=='nt' else 'mihomo'))
 shutil.copy2(ROOT/'third_party/mihomo/LICENSE',core/'LICENSE')
+ca_bundle=ROOT/'third_party/certifi/cacert.pem'
+if hashlib.sha256(ca_bundle.read_bytes()).hexdigest()!='9cc2a774b5198dcff14d9be1e66091f538975d867ce029a96bce15a55dfd730f':
+    raise RuntimeError('固定公共根证书的 SHA-256 校验失败')
+shutil.copy2(ca_bundle,core/'cacert.pem')
+shutil.copy2(ROOT/'third_party/certifi/LICENSE',core/'CA-LICENSE')
 for name in ('README.md','THIRD_PARTY_NOTICES.md'):
     shutil.copy2(ROOT/name,output/name)
 archive=output.with_suffix('.zip')

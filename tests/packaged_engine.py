@@ -4,6 +4,7 @@ import json
 import os
 from pathlib import Path
 import queue
+import ssl
 import subprocess
 import sys
 import tempfile
@@ -13,6 +14,7 @@ import time
 ROOT=Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(ROOT/'tests'))
 from integration_real import TargetHandler, ForwardHandler, launch_http
+from tls_fixture import certificate
 
 
 def bundle_engine():
@@ -33,6 +35,7 @@ def run():
     with tempfile.TemporaryDirectory(prefix='nodescope-packaged-') as directory:
         folder=Path(directory)
         try:
+            cert, key = certificate(folder)
             class ObservedTarget(TargetHandler):
                 def do_GET(self):
                     if self.path == '/subscription?token=PRIVATE_SUBSCRIPTION_TOKEN':
@@ -46,6 +49,11 @@ def run():
             target=launch_http(ObservedTarget)
             target.slow_started=threading.Event()
             fixtures.append(target)
+            tls = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+            tls.load_cert_chain(str(cert), str(key))
+            secure_subscription = launch_http(ObservedTarget)
+            secure_subscription.socket = tls.wrap_socket(secure_subscription.socket, server_side=True)
+            fixtures.append(secure_subscription)
             nodes=[]
             specs=[('日本 local',{'/ok':.015,'/second':.30},False),
                    ('新加坡 local',{'/ok':.30,'/second':.015},False),
@@ -62,7 +70,7 @@ def run():
             config.write_text(json.dumps({'proxies':nodes}),encoding='utf-8')
             process=subprocess.Popen([str(bundle_engine()),'--data-dir',str(folder/'data')],
                 stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.DEVNULL,
-                text=True,encoding='utf-8')
+                text=True,encoding='utf-8',env=dict(os.environ, SSL_CERT_FILE=str(cert)))
             output=queue.Queue()
             reader=threading.Thread(target=lambda: [
                 output.put(json.loads(line)) for line in process.stdout],daemon=True)
@@ -107,12 +115,13 @@ def run():
             assert '香港 failure' in csv.decode('utf-8-sig')
             previous=base64.b64decode(call('export',{'format':'json'})['content'])
             standalone_connection = {'interface': 'lo0' if sys.platform == 'darwin' else ''}
-            for source in ({'type': 'url', 'location': f'http://127.0.0.1:{target.server_port}/subscription?token=PRIVATE_SUBSCRIPTION_TOKEN'},
+            for source in ({'type': 'url', 'location': f'https://127.0.0.1:{secure_subscription.server_port}/subscription?token=PRIVATE_SUBSCRIPTION_TOKEN'},
                            {'type': 'file', 'location': str(config)}):
                 imported = call('import_source', {'source': source, 'connection': standalone_connection})
                 catalog = imported['catalog']
                 assert len(catalog['nodes']) == 3
                 assert '/core/' in catalog['connection']['binary_path'].replace('\\', '/')
+                assert (Path(catalog['connection']['binary_path']).parent / 'cacert.pem').is_file()
                 assert 'PRIVATE_SUBSCRIPTION_TOKEN' not in json.dumps(catalog)
                 call('settings', {'options': dict(options, rounds=1), 'connection': standalone_connection})
                 call('start', {'site_ids': ['ok']})
@@ -146,7 +155,7 @@ def run():
             print(json.dumps({'frozen_engine':True,'rows':6,'requests':12,
                 'distinct_recommendations':True,'failed_rows':2,
                 'export':True,'cancel_preserves_report':True,'eof_cleanup':True,
-                'standalone_url_and_file':True,'bundled_core':True}))
+                'standalone_url_and_file':True,'bundled_core':True,'https_subscription':True}))
         finally:
             if process and process.poll() is None:
                 process.kill()

@@ -4,6 +4,8 @@ import copy
 import json
 from pathlib import Path
 import re
+import ssl
+import sys
 import time
 import urllib.error
 import urllib.request
@@ -127,12 +129,28 @@ def read_response(response, deadline):
             raise ValueError('订阅内容超过 32 MiB。')
 
 
+def trust_bundle():
+    if getattr(sys, 'frozen', False):
+        return Path(sys.executable).parent / 'core/cacert.pem'
+    return Path(__file__).resolve().parent / 'third_party/certifi/cacert.pem'
+
+
+def subscription_tls():
+    context = ssl.create_default_context()
+    try:
+        context.load_verify_locations(cafile=str(trust_bundle()))
+    except (OSError, ssl.SSLError):
+        raise ValueError('HTTPS 证书根缺失或损坏，请使用完整 NodeScope 程序包。') from None
+    return context
+
+
 def download(url, deadline, headers=None):
     validate_url(url)
     remaining = deadline - time.monotonic()
     if remaining <= 0:
         raise ValueError('订阅获取超时，请稍后重试或导入本地配置文件。')
-    opener = urllib.request.build_opener(urllib.request.ProxyHandler({}), SafeRedirect())
+    opener = urllib.request.build_opener(urllib.request.ProxyHandler({}), SafeRedirect(),
+                                        urllib.request.HTTPSHandler(context=subscription_tls()))
     request = urllib.request.Request(url, headers=request_headers(headers))
     try:
         with opener.open(request, timeout=min(remaining, 10)) as response:

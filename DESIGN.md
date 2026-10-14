@@ -15,6 +15,8 @@ snapshot 是随机标识，不能包含路径；清单、报告和进度不包�
 用户主动导入或刷新才执行订阅 HTTP 请求，启动应用和测速使用快照。
 下载直连进行，发送 Mihomo User-Agent；单次导入最多 20 秒、总共 32 MiB 和 20 个 provider。
 重定向限制为 3 次，拒绝 HTTPS 降级与非 HTTP 协议，跨站移除配置提供的认证请求头。
+HTTPS 保留主机名与证书校验，并加载随包的 certifi 2026.7.22 Mozilla 公共根证书。
+根证书来自固定上游提交，不依赖用户安装 Python，也不导出开发机系统证书。
 HTTP provider 的获取由界面列出名称后确认；本地 file provider 只在本地配置模式读取。
 
 快照只保留 proxies、proxy-providers（转为 inline）、proxy-groups、global-client-fingerprint
