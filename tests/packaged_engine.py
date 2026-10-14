@@ -35,6 +35,12 @@ def run():
         try:
             class ObservedTarget(TargetHandler):
                 def do_GET(self):
+                    if self.path == '/subscription?token=PRIVATE_SUBSCRIPTION_TOKEN':
+                        content = json.dumps({'proxies': nodes}).encode('utf-8')
+                        self.send_response(200)
+                        self.end_headers()
+                        self.wfile.write(content)
+                        return
                     if self.path=='/slow': self.server.slow_started.set()
                     super().do_GET()
             target=launch_http(ObservedTarget)
@@ -100,6 +106,25 @@ def run():
             csv=base64.b64decode(call('export',{'format':'csv'})['content'])
             assert '香港 failure' in csv.decode('utf-8-sig')
             previous=base64.b64decode(call('export',{'format':'json'})['content'])
+            standalone_connection = {'interface': 'lo0' if sys.platform == 'darwin' else ''}
+            for source in ({'type': 'url', 'location': f'http://127.0.0.1:{target.server_port}/subscription?token=PRIVATE_SUBSCRIPTION_TOKEN'},
+                           {'type': 'file', 'location': str(config)}):
+                imported = call('import_source', {'source': source, 'connection': standalone_connection})
+                catalog = imported['catalog']
+                assert len(catalog['nodes']) == 3
+                assert '/core/' in catalog['connection']['binary_path'].replace('\\', '/')
+                assert 'PRIVATE_SUBSCRIPTION_TOKEN' not in json.dumps(catalog)
+                call('settings', {'options': dict(options, rounds=1), 'connection': standalone_connection})
+                call('start', {'site_ids': ['ok']})
+                deadline = time.monotonic() + 15
+                while call('job')['running']:
+                    assert time.monotonic() < deadline
+                    time.sleep(.1)
+                standalone_report = call('job')['report']
+                assert standalone_report and len(standalone_report['rows']) == 3
+                assert len([row for row in standalone_report['rows'] if row['eligible']]) == 2
+                assert 'PRIVATE_SUBSCRIPTION_TOKEN' not in json.dumps(standalone_report)
+                previous = base64.b64decode(call('export', {'format': 'json'})['content'])
             slow=[{'id':'slow','name':'慢请求','url':f'http://127.0.0.1:{target.server_port}/slow',
                    'statuses':[200],'validator':'none'}]
             call('settings',{'sites':slow,'options':dict(options,timeout=8),
@@ -120,7 +145,8 @@ def run():
             assert not list((folder/'data/temp').glob('clash-site-probe-*'))
             print(json.dumps({'frozen_engine':True,'rows':6,'requests':12,
                 'distinct_recommendations':True,'failed_rows':2,
-                'export':True,'cancel_preserves_report':True,'eof_cleanup':True}))
+                'export':True,'cancel_preserves_report':True,'eof_cleanup':True,
+                'standalone_url_and_file':True,'bundled_core':True}))
         finally:
             if process and process.poll() is None:
                 process.kill()

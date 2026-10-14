@@ -14,6 +14,7 @@ class ProbeController extends ChangeNotifier {
   List<Json> regions = [];
   Json options = {};
   Json connection = {};
+  Json source = {'type': 'client'};
   Json? catalog;
   Json? report;
   List<Json> liveRows = [];
@@ -46,6 +47,7 @@ class ProbeController extends ChangeNotifier {
       regions = _objects(data['regions']);
       options = Json.from(data['options'] as Map);
       connection = Json.from(data['connection'] as Map);
+      source = Json.from(data['source'] as Map? ?? {'type': 'client'});
       report = data['last_report'] is Map
           ? Json.from(data['last_report'])
           : null;
@@ -75,16 +77,19 @@ class ProbeController extends ChangeNotifier {
     List<Json>? newSites,
     Json? newOptions,
     Json? newConnection,
+    Json? newSource,
   }) => {
     'sites': newSites ?? sites,
     'options': newOptions ?? options,
     'connection': newConnection ?? connection,
+    'source': newSource ?? source,
   };
 
   Future<bool> save({
     List<Json>? newSites,
     Json? newOptions,
     Json? newConnection,
+    Json? newSource,
   }) async {
     try {
       final saved = await engine.call(
@@ -93,11 +98,13 @@ class ProbeController extends ChangeNotifier {
           newSites: newSites,
           newOptions: newOptions,
           newConnection: newConnection,
+          newSource: newSource,
         ),
       );
       sites = _objects(saved['sites']);
       options = Json.from(saved['options'] as Map);
       connection = Json.from(saved['connection'] as Map);
+      source = Json.from(saved['source'] as Map? ?? {'type': 'client'});
       selectedSites = selectedSites
           .where((id) => sites.any((s) => s['id'] == id))
           .toSet();
@@ -119,7 +126,10 @@ class ProbeController extends ChangeNotifier {
     error = '';
     notifyListeners();
     try {
-      catalog = await engine.call('catalog', {'connection': connection});
+      catalog = await engine.call('catalog', {
+        'connection': connection,
+        'source': source,
+      });
       connection = Json.from(catalog!['connection'] as Map);
       warnings = List<String>.from(catalog!['warnings'] as List? ?? []);
     } catch (failure) {
@@ -130,10 +140,52 @@ class ProbeController extends ChangeNotifier {
     }
   }
 
+  Future<Json?> importSource(Json draft) async {
+    if (_disposed || running || busy) return null;
+    busy = true;
+    error = '';
+    notifyListeners();
+    try {
+      final result = await engine.call('import_source', {
+        'source': draft,
+        'connection': source['type'] == 'client'
+            ? {'interface': connection['interface'] ?? ''}
+            : connection,
+      });
+      if (result['requires_provider_download'] == true) return result;
+      final saved = Json.from(result['settings'] as Map);
+      source = Json.from(saved['source'] as Map);
+      connection = Json.from(saved['connection'] as Map);
+      options = Json.from(saved['options'] as Map);
+      catalog = Json.from(result['catalog'] as Map);
+      warnings = List<String>.from(catalog!['warnings'] as List? ?? []);
+      return result;
+    } catch (failure) {
+      error = message(failure);
+      return null;
+    } finally {
+      busy = false;
+      if (!_disposed) notifyListeners();
+    }
+  }
+
+  Future<void> refreshSource() async {
+    if (source['type'] == 'client') {
+      await refreshCatalog();
+    } else {
+      final result = await importSource(source);
+      if (result?['requires_provider_download'] == true) {
+        error = '订阅引用了其他远程节点来源，请在导入节点中确认下载。';
+        if (!_disposed) notifyListeners();
+      }
+    }
+  }
+
   Future<Json?> preview({Json? draftOptions}) async {
     try {
       return await engine.call('preview', {
         'connection': connection,
+        'source': source,
         'options': draftOptions ?? options,
       });
     } catch (failure) {
@@ -156,6 +208,7 @@ class ProbeController extends ChangeNotifier {
       if (!await save()) return;
       await engine.call('start', {
         'connection': connection,
+        'source': source,
         'options': options,
         'site_ids': selectedSites.toList(),
       });

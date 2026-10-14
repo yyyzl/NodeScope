@@ -7,6 +7,7 @@ import shutil
 import subprocess
 import sys
 import zipfile
+from download_test_core import download_core
 
 ROOT=Path(__file__).resolve().parents[1]
 parser=argparse.ArgumentParser()
@@ -18,7 +19,7 @@ subprocess.run([flutter_binary,'build',target,'--release','--no-pub'],
     cwd=ROOT/'desktop',check=True)
 subprocess.run([sys.executable,'-m','PyInstaller','--noconfirm','--onedir',
     '--console','--name','probe-engine','--hidden-import','engine',
-    '--hidden-import','windows_support','--distpath',str(ROOT/'work/frozen'),
+    '--hidden-import','windows_support','--hidden-import','node_sources','--distpath',str(ROOT/'work/frozen'),
     '--workpath',str(ROOT/'work/pyinstaller'),'desktop_host.py'],
     cwd=ROOT,check=True)
 if os.name=='nt':
@@ -44,6 +45,10 @@ else:
     shutil.copytree(candidates[0],app,symlinks=True,dirs_exist_ok=True)
     engine=app/'Contents/Resources/engine/probe-engine'
 shutil.copytree(ROOT/'work/frozen/probe-engine',engine,dirs_exist_ok=True)
+core=engine/'core'
+core.mkdir(exist_ok=True)
+shutil.copy2(download_core(),core/('mihomo.exe' if os.name=='nt' else 'mihomo'))
+shutil.copy2(ROOT/'third_party/mihomo/LICENSE',core/'LICENSE')
 for name in ('README.md','THIRD_PARTY_NOTICES.md'):
     shutil.copy2(ROOT/name,output/name)
 archive=output.with_suffix('.zip')
@@ -55,6 +60,7 @@ if os.name=='nt':
     with zipfile.ZipFile(archive) as bundle:
         assert bundle.testzip() is None
 else:
+    subprocess.run(['codesign','--force','--sign','-','--timestamp=none',str(core/'mihomo')],check=True)
     subprocess.run(['codesign','--force','--deep','--sign','-',
         '--entitlements',str(ROOT/'desktop/macos/Runner/Release.entitlements'),
         '--timestamp=none',str(app)],check=True)

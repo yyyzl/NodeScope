@@ -154,13 +154,21 @@ def _controller(value):
     return value.rstrip('/')
 
 
+def bundled_core():
+    """优先使用随包的固定内核；开发时使用已校验的项目内内核。"""
+    root = Path(sys.executable).parent if getattr(sys, 'frozen', False) else Path(__file__).resolve().parent
+    name = 'mihomo.exe' if os.name == 'nt' else 'mihomo'
+    return next((str(p) for p in (root / 'core' / name, root / 'work/test-core' / name) if p.is_file()), '')
+
+
 def discover(overrides, require_runtime=True):
     # Browser forms send all keys; blank values explicitly mean auto-discover.
     overrides = {k: v for k, v in (overrides or {}).items() if v not in ('', None)}
+    standalone = bool(overrides.get('_standalone'))
     hints = {}
-    if sys.platform == 'win32' and (not overrides.get('config_path') or (require_runtime and not overrides.get('binary_path'))):
+    if not standalone and sys.platform == 'win32' and (not overrides.get('config_path') or (require_runtime and not overrides.get('binary_path'))):
         hints = discover_windows()
-    if sys.platform == 'darwin':
+    if not standalone and sys.platform == 'darwin':
         try:
             listing = subprocess.run(['/bin/ps', '-axo', 'command='], capture_output=True, text=True, timeout=3).stdout
             for line in listing.splitlines():
@@ -189,13 +197,13 @@ def discover(overrides, require_runtime=True):
     config = str(Path(config).expanduser().resolve())
     cfg = _load(config)
     binary_candidates = ['/Applications/Clash Verge.app/Contents/MacOS/verge-mihomo', '/Applications/Clash Verge.app/Contents/MacOS/mihomo', str(home / 'Applications/Clash Verge.app/Contents/MacOS/verge-mihomo')]
-    binary = overrides.get('binary_path') or hints.get('binary_path') or next((p for p in binary_candidates if Path(p).is_file()), '') or shutil.which('mihomo')
+    binary = (overrides.get('binary_path') or bundled_core()) if standalone else (overrides.get('binary_path') or hints.get('binary_path') or next((p for p in binary_candidates if Path(p).is_file()), '') or shutil.which('mihomo'))
     if not binary or not Path(binary).expanduser().is_file():
         if require_runtime:
-            raise RuntimeError('未找到 Mihomo 可执行文件，请指定 binary_path')
+            raise RuntimeError('未找到独立 Mihomo，请安装完整 NodeScope 包或指定内核路径。' if standalone else '未找到 Mihomo 可执行文件，请指定 binary_path')
         binary = ''
     interface = overrides.get('interface', '')
-    if sys.platform == 'win32' and not interface and not overrides.get('config_path'):
+    if sys.platform == 'win32' and not interface and (standalone or not overrides.get('config_path')):
         interface = physical_interface()
     if sys.platform == 'darwin' and not interface:
         try:
@@ -209,7 +217,7 @@ def discover(overrides, require_runtime=True):
     if require_runtime and sys.platform == 'darwin' and (not interface or str(interface).startswith(('utun', 'tun'))):
         raise RuntimeError('无法确定物理网络接口；请指定 en0/en1 等接口，避免经过主核心 TUN')
     unix_socket = overrides.get('unix_socket', '')
-    if sys.platform == 'darwin' and not unix_socket and 'controller' not in overrides:
+    if not standalone and sys.platform == 'darwin' and not unix_socket and 'controller' not in overrides:
         candidates = ['/tmp/verge/verge-mihomo.sock', f'/var/run/clash-verge-service/users/{os.getuid()}/verge-mihomo.sock']
         unix_socket = next((p for p in candidates if Path(p).exists()), '')
     controller = overrides.get('controller', cfg.get('external-controller', ''))
@@ -220,7 +228,8 @@ def discover(overrides, require_runtime=True):
             'core_dir': str(Path(overrides.get('core_dir') or hints.get('core_dir') or Path(config).parent).expanduser().resolve()),
             'controller': _controller(controller),
             'unix_socket': str(unix_socket), 'interface': interface,
-            'named_pipe': resolve_pipe(str(overrides.get('named_pipe') or cfg.get('external-controller-pipe') or '')) if sys.platform == 'win32' else ''}
+            'named_pipe': resolve_pipe(str(overrides.get('named_pipe') or cfg.get('external-controller-pipe') or '')) if sys.platform == 'win32' else '',
+            '_standalone': standalone}
 
 
 def _api(connection, cfg, endpoint):
@@ -257,14 +266,20 @@ def _inventory(connection):
     cfg = _load(connection['config_path'])
     warnings, runtime, memberships, version = [], {}, {}, ''
     memberships_available = False
-    try:
-        version = str(_api(connection, cfg, '/version').get('version', ''))
-        runtime = _api(connection, cfg, '/proxies').get('proxies', {})
-        if cfg.get('proxy-providers'):
-            memberships = _api(connection, cfg, '/providers/proxies').get('providers', {})
-            memberships_available = True
-    except (OSError, ValueError, RuntimeError, subprocess.SubprocessError):
-        warnings.append('本机控制器不可用；策略组与 provider 名称按本地缓存解析，请检查控制器/Unix socket')
+    if connection.get('_standalone'):
+        if connection.get('binary_path'):
+            version = '独立 Mihomo'
+        else:
+            warnings.append('独立内核缺失，请使用完整安装包或在连接设置中选择内核。')
+    else:
+        try:
+            version = str(_api(connection, cfg, '/version').get('version', ''))
+            runtime = _api(connection, cfg, '/proxies').get('proxies', {})
+            if cfg.get('proxy-providers'):
+                memberships = _api(connection, cfg, '/providers/proxies').get('providers', {})
+                memberships_available = True
+        except (OSError, ValueError, RuntimeError, subprocess.SubprocessError):
+            warnings.append('本机控制器不可用；策略组与 provider 名称按本地缓存解析，请检查控制器/Unix socket')
     proxies, providers = {}, {}
     def add(proxy, provider=''):
         if not isinstance(proxy, dict) or not isinstance(proxy.get('name'), str) or not proxy.get('type'):

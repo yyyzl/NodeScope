@@ -18,8 +18,9 @@ import datetime
 import signal
 import webbrowser
 from urllib.parse import parse_qs, urlsplit
+from node_sources import DEFAULT_SOURCE, SourceStore, normalize_source
 
-VERSION = '1.0.0'
+VERSION = '1.1.0'
 ROOT = Path(__file__).resolve().parent
 CONNECTION_KEYS = ('config_path', 'binary_path', 'core_dir', 'controller', 'unix_socket', 'interface', 'named_pipe')
 
@@ -31,12 +32,13 @@ class App:
         self.engine = engine_module or importlib.import_module('engine')
         self.data_dir = Path(data_dir)
         self.data_dir.mkdir(parents=True, exist_ok=True)
+        self.sources = SourceStore(self.data_dir)
         self.session = secrets.token_urlsafe(32)
         self.csrf = secrets.token_urlsafe(32)
         self.lock = threading.RLock()
         self.settings = {'sites': copy.deepcopy(self.engine.DEFAULT_SITES),
                          'options': copy.deepcopy(self.engine.DEFAULT_OPTIONS),
-                         'connection': {k: '' for k in CONNECTION_KEYS}}
+                         'connection': {k: '' for k in CONNECTION_KEYS}, 'source': dict(DEFAULT_SOURCE)}
         self.last_report = None
         self.job = {'id': None, 'running': False, 'events': [], 'report': None,
                     'error': None, 'progress': {'completed': 0, 'total': 0}}
@@ -83,7 +85,8 @@ class App:
             raise ValueError('网站标识不能重复。')
         options = self.engine.validate_options(payload.get('options', self.settings['options']))
         connection = self.normalize_connection(payload.get('connection', self.settings['connection']))
-        return {'sites': sites, 'options': options, 'connection': connection}
+        source = normalize_source(payload.get('source', self.settings['source']))
+        return {'sites': sites, 'options': options, 'connection': connection, 'source': source}
 
     def write_json(self, path, value):
         temporary = path.with_name(path.name + '.' + secrets.token_hex(6) + '.tmp')
@@ -99,10 +102,39 @@ class App:
 
     def save_settings(self, payload):
         with self.lock:
+            if self.job['running']:
+                raise JobConflict('测速过程中不能修改设置，请先等待或停止。')
             normalized = self.normalize_settings(payload)
             self.write_json(self.data_dir / 'settings.json', normalized)
             self.settings = normalized
             return copy.deepcopy(normalized)
+
+    def source_connection(self, payload):
+        connection = self.normalize_connection(payload.get('connection', self.settings['connection']))
+        source = normalize_source(payload.get('source', self.settings['source']))
+        return self.sources.connection(source, connection)
+
+    def catalog(self, payload):
+        return self.engine.catalog(self.source_connection(payload))
+
+    def import_source(self, payload):
+        with self.lock:
+            if self.job['running']:
+                raise JobConflict('测速过程中不能更新节点来源，请先等待或停止。')
+            source, config, providers = self.sources.prepare(payload.get('source', self.settings['source']))
+            if providers:
+                return {'requires_provider_download': True, 'providers': providers}
+            self.write_json(self.sources.snapshot_path(source), config)
+            connection = self.normalize_connection(payload.get('connection', self.settings['connection']))
+            catalog = self.engine.catalog(self.sources.connection(source, connection))
+            if not catalog['nodes']:
+                raise ValueError('配置没有可测试节点，请检查节点类型及来源筛选。')
+            changed = (source['type'], source['location']) != (self.settings['source']['type'], self.settings['source']['location'])
+            options = dict(self.settings['options'])
+            if changed:
+                options.update(group='', provider='', node_names=[])
+            saved = self.save_settings({'source': source, 'connection': connection, 'options': options})
+            return {'settings': saved, 'catalog': catalog}
 
     def job_state(self):
         with self.lock:
@@ -121,7 +153,7 @@ class App:
             if self.job['running']:
                 raise JobConflict('已有测速任务在运行，请先等待或停止。')
             options = self.engine.validate_options(payload.get('options', self.settings['options']))
-            connection = self.normalize_connection(payload.get('connection', self.settings['connection']))
+            connection = self.source_connection(payload)
             ids = payload.get('site_ids', [])
             if not isinstance(ids, list) or not 1 <= len(ids) <= 10 or any(not isinstance(i, str) for i in ids):
                 raise ValueError('请一次选择 1～10 个网站。')
@@ -263,8 +295,7 @@ class Handler(BaseHTTPRequestHandler):
             path = urlsplit(self.path).path
             if path in ('/api/catalog', '/api/preview'):
                 app = self.server.app
-                connection = app.normalize_connection(payload.get('connection', app.settings['connection']))
-                catalog = app.engine.catalog(connection)
+                catalog = app.catalog(payload)
                 if path == '/api/catalog':
                     return self.send_body(200, catalog)
                 options = app.engine.validate_options(payload.get('options', app.settings['options']))

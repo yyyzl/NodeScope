@@ -27,7 +27,8 @@ Future<void> showConnectionDialog(
     ])
       key: TextEditingController(text: c.connection[key]?.toString() ?? ''),
   };
-  var manual = false, saving = false;
+  final standalone = c.source['type'] != 'client';
+  var manual = standalone, saving = false;
   String error = '';
   try {
     await showDialog<void>(
@@ -54,11 +55,12 @@ Future<void> showConnectionDialog(
 
           final labels = {
             'binary_path': 'Mihomo 内核路径',
-            'config_path': '生效配置路径',
-            'core_dir': '内核工作目录',
-            'controller': '控制器地址',
-            if (Platform.isWindows) 'named_pipe': 'Windows named pipe',
-            if (Platform.isMacOS) 'unix_socket': 'Unix socket',
+            if (!standalone) 'config_path': '生效配置路径',
+            if (!standalone) 'core_dir': '内核工作目录',
+            if (!standalone) 'controller': '控制器地址',
+            if (!standalone && Platform.isWindows)
+              'named_pipe': 'Windows named pipe',
+            if (!standalone && Platform.isMacOS) 'unix_socket': 'Unix socket',
             'interface': '出站物理网卡',
           };
           return DialogShell(
@@ -79,7 +81,12 @@ Future<void> showConnectionDialog(
                                   entry.key: entry.value.text.trim(),
                               }
                             : {for (final key in fields.keys) key: ''};
-                        final ok = await c.save(newConnection: connection);
+                        final ok = await c.save(
+                          newConnection: connection,
+                          newSource: manual && standalone
+                              ? c.source
+                              : {'type': 'client'},
+                        );
                         if (!dialogContext.mounted) return;
                         if (ok) {
                           Navigator.pop(dialogContext);
@@ -132,10 +139,13 @@ Future<void> showConnectionDialog(
                         ? null
                         : () async {
                             setLocal(() => saving = true);
-                            c.connection = {
-                              for (final key in fields.keys) key: '',
-                            };
-                            await c.refreshCatalog();
+                            final ok = await c.save(
+                              newConnection: {
+                                for (final key in fields.keys) key: '',
+                              },
+                              newSource: {'type': 'client'},
+                            );
+                            if (ok) await c.refreshCatalog();
                             if (!dialogContext.mounted) return;
                             setLocal(() {
                               saving = false;
@@ -158,9 +168,11 @@ Future<void> showConnectionDialog(
                       ),
                     ),
                 ] else ...[
-                  const Text(
-                    '留空字段自动发现，不需要填写控制器密码或订阅令牌。',
-                    style: TextStyle(color: muted),
+                  Text(
+                    standalone
+                        ? '使用应用自带内核。也可选择其他 Mihomo，或指定出站物理网卡。'
+                        : '留空字段自动发现，不需要填写控制器密码或订阅令牌。',
+                    style: const TextStyle(color: muted),
                   ),
                   const SizedBox(height: 18),
                   for (final entry in labels.entries)
@@ -203,6 +215,205 @@ Future<void> showConnectionDialog(
     for (final field in fields.values) {
       field.dispose();
     }
+  }
+}
+
+Future<void> showSourceDialog(BuildContext context, ProbeController c) async {
+  var type = c.source['type'] == 'file' ? 'file' : 'url';
+  final url = TextEditingController(
+    text: c.source['type'] == 'url'
+        ? c.source['location']?.toString() ?? ''
+        : '',
+  );
+  final file = TextEditingController(
+    text: c.source['type'] == 'file'
+        ? c.source['location']?.toString() ?? ''
+        : '',
+  );
+  var saving = false, allowProviders = false, showUrl = false;
+  String error = '';
+  List<String> providers = [];
+  try {
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setLocal) => DialogShell(
+          title: '导入节点',
+          actions: [
+            TextButton(
+              onPressed: saving ? null : () => Navigator.pop(dialogContext),
+              child: const Text('取消'),
+            ),
+            FilledButton(
+              onPressed: saving
+                  ? null
+                  : () async {
+                      setLocal(() {
+                        saving = true;
+                        error = '';
+                      });
+                      final result = await c.importSource({
+                        'type': type,
+                        'location': (type == 'url' ? url : file).text.trim(),
+                        'fetch_providers': allowProviders,
+                      });
+                      if (!dialogContext.mounted) return;
+                      if (result != null &&
+                          result['requires_provider_download'] != true) {
+                        Navigator.pop(dialogContext);
+                        await showNodesDialog(context, c);
+                      } else {
+                        setLocal(() {
+                          saving = false;
+                          if (result?['requires_provider_download'] == true) {
+                            providers = List<String>.from(
+                              result!['providers'] as List,
+                            );
+                            error = '配置引用了其他远程节点来源，请确认是否下载后再次导入。';
+                          } else {
+                            error = c.error;
+                          }
+                        });
+                      }
+                    },
+              child: Text(saving ? '正在导入…' : '导入并预览'),
+            ),
+          ],
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SegmentedButton<String>(
+                segments: const [
+                  ButtonSegment(
+                    value: 'url',
+                    icon: Icon(Icons.link),
+                    label: Text('订阅链接'),
+                  ),
+                  ButtonSegment(
+                    value: 'file',
+                    icon: Icon(Icons.description_outlined),
+                    label: Text('配置文件'),
+                  ),
+                ],
+                selected: {type},
+                showSelectedIcon: false,
+                onSelectionChanged: saving
+                    ? null
+                    : (value) => setLocal(() {
+                        type = value.first;
+                        providers = [];
+                        allowProviders = false;
+                        error = '';
+                      }),
+              ),
+              const SizedBox(height: 20),
+              const Text(
+                '支持 Clash/Mihomo YAML 或 JSON 配置。使用应用自带内核，无需先打开代理客户端。',
+                style: TextStyle(color: muted),
+              ),
+              const SizedBox(height: 20),
+              if (type == 'url')
+                LabeledField(
+                  label: '订阅 URL',
+                  hint: '订阅只在本机获取和解析，链接不会写入测速报告。',
+                  child: TextField(
+                    controller: url,
+                    enabled: !saving,
+                    obscureText: !showUrl,
+                    autocorrect: false,
+                    enableSuggestions: false,
+                    onChanged: (_) => setLocal(() {
+                      providers = [];
+                      allowProviders = false;
+                      error = '';
+                    }),
+                    decoration: InputDecoration(
+                      hintText: 'https://…',
+                      suffixIcon: IconButton(
+                        tooltip: showUrl ? '隐藏链接' : '显示链接',
+                        onPressed: saving
+                            ? null
+                            : () => setLocal(() => showUrl = !showUrl),
+                        icon: Icon(
+                          showUrl
+                              ? Icons.visibility_off_outlined
+                              : Icons.visibility_outlined,
+                        ),
+                      ),
+                    ),
+                  ),
+                )
+              else
+                LabeledField(
+                  label: '配置文件',
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: file,
+                          enabled: !saving,
+                          onChanged: (_) => setLocal(() {
+                            providers = [];
+                            allowProviders = false;
+                            error = '';
+                          }),
+                          decoration: const InputDecoration(
+                            hintText: '选择 YAML / JSON 文件',
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      OutlinedButton(
+                        onPressed: saving
+                            ? null
+                            : () async {
+                                final selected = await openFile(
+                                  acceptedTypeGroups: const [
+                                    XTypeGroup(
+                                      label: 'Clash 配置',
+                                      extensions: ['yaml', 'yml', 'json'],
+                                    ),
+                                  ],
+                                );
+                                if (selected != null && dialogContext.mounted) {
+                                  setLocal(() {
+                                    file.text = selected.path;
+                                    providers = [];
+                                    allowProviders = false;
+                                    error = '';
+                                  });
+                                }
+                              },
+                        child: const Text('浏览'),
+                      ),
+                    ],
+                  ),
+                ),
+              if (providers.isNotEmpty) ...[
+                Text(
+                  '远程节点来源：${providers.join('、')}',
+                  style: const TextStyle(color: muted),
+                ),
+                CheckboxListTile(
+                  contentPadding: EdgeInsets.zero,
+                  value: allowProviders,
+                  onChanged: saving
+                      ? null
+                      : (value) =>
+                            setLocal(() => allowProviders = value ?? false),
+                  title: const Text('允许获取这些远程节点来源'),
+                ),
+              ],
+              if (error.isNotEmpty)
+                Text(error, style: const TextStyle(color: red)),
+            ],
+          ),
+        ),
+      ),
+    );
+  } finally {
+    url.dispose();
+    file.dispose();
   }
 }
 
