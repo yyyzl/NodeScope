@@ -62,6 +62,15 @@ class ProbeController extends ChangeNotifier {
       ready = true;
       notifyListeners();
       await refreshCatalog();
+      if (!_disposed &&
+          catalog == null &&
+          source['type'] == 'client' &&
+          connection.values.every((value) => value == '') &&
+          error.startsWith('未找到 Clash/Mihomo 配置')) {
+        error = '';
+        warnings = [...warnings, '导入订阅链接或配置文件即可测速，也可在连接设置中选择已有客户端。'];
+        notifyListeners();
+      }
     } catch (failure) {
       error = message(failure);
       if (!_disposed) notifyListeners();

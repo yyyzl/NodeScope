@@ -237,6 +237,8 @@ class _ProbePageState extends State<ProbePage> {
                       ? '订阅链接'
                       : c.source['type'] == 'file'
                       ? '配置文件'
+                      : c.catalog == null
+                      ? '节点来源'
                       : 'Clash Verge Rev',
                   style: const TextStyle(fontWeight: FontWeight.w600),
                 ),
@@ -245,7 +247,7 @@ class _ProbePageState extends State<ProbePage> {
                       ? '正在读取节点…'
                       : connected
                       ? '已连接 · $count 个可测节点'
-                      : '待连接 · 请刷新节点',
+                      : '请导入节点，或连接客户端',
                   style: TextStyle(
                     fontSize: 13,
                     color: connected ? green : muted,
@@ -416,7 +418,7 @@ class _ProbePageState extends State<ProbePage> {
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
       IgnorePointer(
-        ignoring: c.running,
+        ignoring: c.running || c.busy,
         child: Row(
           children: [
             Expanded(child: _sampling('测试轮次', 'rounds', [1, 3, 5, 10], '轮')),

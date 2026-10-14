@@ -1,4 +1,6 @@
 desktop/** text=auto eol=lf
 *.png binary
 *.ico binary
+# 公共证书按上游原始字节校验，禁止 Windows 检出时转换换行。
+third_party/certifi/cacert.pem -text
 prototypes/** linguist-documentation

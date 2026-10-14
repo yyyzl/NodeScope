@@ -14,6 +14,7 @@ class FakeEngine implements EngineApi {
   bool failSave = false;
   bool stopped = false;
   bool failImport = false;
+  bool failCatalog = false;
   bool requireProviders = false;
   List<String> commands = [];
   final settings = <String, dynamic>{
@@ -69,6 +70,7 @@ class FakeEngine implements EngineApi {
       case 'bootstrap':
         return settings;
       case 'catalog':
+        if (failCatalog) throw StateError('未找到 Clash/Mihomo 配置，请指定生效配置。');
         return {
           'connection': settings['connection'],
           'nodes': [],
@@ -152,6 +154,25 @@ void main() {
           ),
         );
       await font.load();
+    }
+  });
+  test('首次启动没有客户端时提示导入，手动配置失败仍显示错误', () async {
+    for (final manual in [false, true]) {
+      final engine = FakeEngine()..failCatalog = true;
+      if (manual) {
+        (engine.settings['connection'] as Map)['config_path'] =
+            '/missing/fixture.yaml';
+      }
+      final controller = ProbeController(engine);
+      await controller.initialize();
+      expect(controller.ready, true);
+      if (manual) {
+        expect(controller.error, contains('未找到'));
+      } else {
+        expect(controller.error, isEmpty);
+        expect(controller.warnings.single, contains('导入订阅'));
+      }
+      controller.dispose();
     }
   });
   test('导入成功更新节点来源，保留上次报告', () async {
