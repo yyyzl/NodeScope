@@ -15,7 +15,9 @@ Windows：双击 **NodeScope-Setup.exe**，按中文向导安装。默认安装�
 便携 ZIP 仍可使用：解压完整的 NodeScope-Windows-x64.zip，双击 NodeScope.exe，
 保留旁边的 data、engine 和 DLL。两种发行方式均不需要安装 Python、Node 或 Flutter。
 
-macOS：使用与 CPU 架构匹配的 macOS ZIP，解压后打开 NodeScope.app。
+macOS：Apple Silicon 下载 NodeScope-macOS-arm64.dmg；Intel Mac 下载
+NodeScope-macOS-x86_64.dmg。打开 DMG，将 NodeScope 拖到 Applications，
+再从“应用程序”打开 NodeScope，安装完成后可推出磁盘映像。
 当前构建为 ad-hoc 签名，尚未做 Apple Developer 签名与公证。
 
 点击“导入节点”，粘贴自己的 Clash/Mihomo 订阅 URL，或选择 YAML / JSON 配置文件。
@@ -94,6 +96,9 @@ scripts/run_engine_tests.py 按文件执行全部 Python 回归，每个后台�
 tests/packaged_engine.py 在打包的引擎进程中验证真实 Mihomo、
 两个本地网站、成功/失败行、各站独立推荐、URL / 文件独立测速、导出、取消与 EOF 清理。
 这些服务是隔离测试夹具，不是公网节点测速成绩。
+macOS 构建使用系统 hdiutil 生成压缩只读 DMG，包含应用、Applications 快捷方式与许可说明。
+tests/macos_dmg.py 验证映像完整性、挂载、复制安装、卸载后的签名与架构；
+随后从复制后的应用运行 tests/packaged_engine.py，验证实际安装内容的测速链路。
 
 Windows 安装器使用 Inno Setup 6.7.3。build_installer.py 从官方固定版本下载
 并核对 SHA-256，以便携模式放在项目 .tools/ 下，不修改系统 PATH 或安装全局编译器。
@@ -105,7 +110,7 @@ Git 流程：独立功能分支先通过 Windows / macOS 构建和测试，然�
 再次核对该提交的检查结果，最后合入 master。工作流见 .github/workflows/desktop.yml。
 默认构建 Windows、Apple Silicon macOS 和 Intel macOS 三个平台。
 推送 v* 标签或在 GitHub 发布该版本 Release 时，所有平台通过后自动附加安装器、
-三个 ZIP 和 SHA256SUMS.txt 到 Release。
+Windows 便携 ZIP、两种 Mac 架构的 DMG 和 SHA256SUMS.txt 到 Release。
 scripts/prepare_release.py 会拒绝缺少任一平台附件的发布。
 
 ## 授权

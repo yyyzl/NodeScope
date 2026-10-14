@@ -4,7 +4,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 REQUIRED_ASSETS = ('NodeScope-Setup.exe', 'NodeScope-Windows-x64.zip',
-                   'NodeScope-macOS-arm64.zip', 'NodeScope-macOS-x86_64.zip')
+                   'NodeScope-macOS-arm64.dmg', 'NodeScope-macOS-x86_64.dmg')
 
 
 def prepare(folder):
@@ -23,8 +23,9 @@ if __name__ == '__main__':
     (ROOT / 'work/release-notes.md').write_text(chr(10).join([
         'NodeScope 支持 Windows 和 macOS。', '',
         '- Windows：下载安装器，或解压完整便携 ZIP。',
-        '- Apple Silicon Mac：下载 macOS-arm64 ZIP。',
-        '- Intel Mac：下载 macOS-x86_64 ZIP。',
+        '- Apple Silicon Mac：下载 NodeScope-macOS-arm64.dmg。',
+        '- Intel Mac：下载 NodeScope-macOS-x86_64.dmg。',
+        '- Mac 安装：打开 DMG，将 NodeScope 拖到 Applications，再从应用程序中打开。',
         '- 随包提供独立 Mihomo，可直接导入 Clash/Mihomo 订阅链接或配置文件测速。',
         '- SHA256SUMS.txt 提供全部程序包的摘要。', '',
         'macOS 当前为 ad-hoc 签名，尚未做 Apple Developer 公证。', '',

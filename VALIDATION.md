@@ -124,3 +124,15 @@ provider 获取确认与私有快照。宽窗口的设置和结果独立滚动�
 
 订阅 / 节点 / HTTP 网站均为本地隔离测试夹具，不代表公网性能成绩；未获取用户真实订阅。
 下文为早期 Python / HTML 版本的历史验证记录。
+
+## NodeScope 1.1.1 DMG 打包验证（2026-10-15）
+
+macOS 发行改为两种架构的压缩只读 DMG，版本为 1.1.1+4。
+本地 14 项来源 / 发布回归及打包脚本语法检查通过；发布回归确认旧 Mac ZIP
+不能满足 DMG 附件要求。Windows 本机不能执行 hdiutil，原生安装验证由对应 Mac runner 执行。
+
+CI 的 tests/macos_dmg.py 校验映像、只读挂载、Applications 快捷方式、复制安装与推出镜像，
+再核对复制后应用的签名、界面 / 引擎 / Mihomo 架构、执行权限、根证书和许可文件。
+tests/packaged_engine.py 随后从复制后的应用运行，验证镜像卸载后的 HTTPS 导入、
+实际测速、推荐、失败行、导出、取消及 EOF 清理。两个后台验证步骤分别限制为 60 秒。
+测试安装目录位于项目 work/dmg-install，不写入 runner 的系统 Applications 目录。

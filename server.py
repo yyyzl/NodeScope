@@ -20,7 +20,7 @@ import webbrowser
 from urllib.parse import parse_qs, urlsplit
 from node_sources import DEFAULT_SOURCE, SourceStore, normalize_source
 
-VERSION = '1.1.0'
+VERSION = '1.1.1'
 ROOT = Path(__file__).resolve().parent
 CONNECTION_KEYS = ('config_path', 'binary_path', 'core_dir', 'controller', 'unix_socket', 'interface', 'named_pipe')
 
