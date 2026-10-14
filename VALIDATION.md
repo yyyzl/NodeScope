@@ -118,6 +118,8 @@ provider 获取确认与私有快照。宽窗口的设置和结果独立滚动�
 - GitHub 默认矩阵包含 Windows、macOS arm64、macOS x86_64；v* 标签发布前检查四个
   必需程序附件。补充测试确认缺少任一 macOS 架构时拒绝生成发布清单。
 - 跨平台来源测试使用 samefile 校验真实目录，支持 macOS /var 别名和 Windows 短路径。
+- Intel runner 的整组回归接近 60 秒，因此使用 scripts/run_engine_tests.py 按文件执行
+  全部测试，每个后台进程仍严格限制 60 秒；没有延长上限或删除测试。
 
 订阅 / 节点 / HTTP 网站均为本地隔离测试夹具，不代表公网性能成绩；未获取用户真实订阅。
 下文为早期 Python / HTML 版本的历史验证记录。

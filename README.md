@@ -73,6 +73,8 @@ macOS 用户的 Library/Application Support/NodeScope。
 Python 引擎仍在项目根目录。当前使用 Flutter 3.47.7。
 
     python -m pip install -r requirements.txt pyinstaller
+    python scripts/download_test_core.py
+    python scripts/run_engine_tests.py
     cd desktop
     flutter pub get
     flutter analyze --no-pub
@@ -88,6 +90,7 @@ scripts/prepare_windows_links.ps1 创建项目内插件目录联接，
 使用 -Flutter 参数指定 SDK 路径。脚本不更改系统开发者模式。
 
 scripts/download_test_core.py 下载固定官方内核并校验摘要，供测试与发行包共用。
+scripts/run_engine_tests.py 按文件执行全部 Python 回归，每个后台进程最多 60 秒。
 tests/packaged_engine.py 在打包的引擎进程中验证真实 Mihomo、
 两个本地网站、成功/失败行、各站独立推荐、URL / 文件独立测速、导出、取消与 EOF 清理。
 这些服务是隔离测试夹具，不是公网节点测速成绩。

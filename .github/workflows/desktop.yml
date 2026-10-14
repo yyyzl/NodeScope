@@ -48,7 +48,7 @@ jobs:
       - name: Download verified standalone core
         run: python scripts/download_test_core.py
       - name: Engine regression tests
-        run: python -c "import subprocess,sys; subprocess.run([sys.executable,'-W','error::ResourceWarning','-m','unittest','discover','-s','tests','-v'],timeout=60,check=True)"
+        run: python scripts/run_engine_tests.py
       - name: Flutter analysis
         run: flutter analyze --no-pub
         working-directory: desktop
