@@ -35,7 +35,10 @@ def run():
     with tempfile.TemporaryDirectory(prefix='nodescope-packaged-') as directory:
         folder=Path(directory)
         try:
-            cert, key = certificate(folder)
+            if os.environ.get('NODESCOPE_TEST_CERT') and os.environ.get('NODESCOPE_TEST_KEY'):
+                cert, key = (Path(os.environ[name]) for name in ('NODESCOPE_TEST_CERT', 'NODESCOPE_TEST_KEY'))
+            else:
+                cert, key = certificate(folder)
             class ObservedTarget(TargetHandler):
                 def do_GET(self):
                     if self.path == '/subscription?token=PRIVATE_SUBSCRIPTION_TOKEN':
