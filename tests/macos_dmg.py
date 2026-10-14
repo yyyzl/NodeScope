@@ -47,7 +47,7 @@ def run():
                 engine / 'probe-engine', engine / 'core/mihomo']
     for binary in binaries:
         assert binary.is_file() and os.access(binary, os.X_OK), binary
-        subprocess.run(['lipo', '-verify_arch', architecture, str(binary)],
+        subprocess.run(['lipo', str(binary), '-verify_arch', architecture],
                        check=True, timeout=10)
     for name in ('LICENSE', 'CA-LICENSE', 'cacert.pem'):
         assert (engine / 'core' / name).is_file(), name
