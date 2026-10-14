@@ -6,8 +6,14 @@
 
 ## 启动
 
-Windows：解压完整的 NodeScope-Windows-x64.zip，双击 NodeScope.exe。
-请保留旁边的 data、engine 和 DLL，不需要安装 Python、Node 或 Flutter。
+Windows：双击 **NodeScope-Setup.exe**，按中文向导安装。默认安装到
+当前用户的 LocalAppData/Programs/NodeScope，无需管理员权限。
+安装后从开始菜单打开 NodeScope，也可在安装时选择创建桌面快捷方式。
+可在 Windows“已安装的应用”中卸载；卸载保留本机设置和测速报告。
+覆盖安装会更新已有程序。当前 EXE 尚无代码签名证书。
+
+便携 ZIP 仍可使用：解压完整的 NodeScope-Windows-x64.zip，双击 NodeScope.exe，
+保留旁边的 data、engine 和 DLL。两种发行方式均不需要安装 Python、Node 或 Flutter。
 
 macOS：使用与 CPU 架构匹配的 macOS ZIP，解压后打开 NodeScope.app。
 当前构建为 ad-hoc 签名，尚未做 Apple Developer 签名与公证。
@@ -58,6 +64,8 @@ Python 引擎仍在项目根目录。当前使用 Flutter 3.47.7。
     flutter test --no-pub --timeout 60s
     cd ..
     python scripts/build_bundle.py
+    # Windows 另生成单文件安装器：
+    python scripts/build_installer.py
 
 Windows 未开启开发者模式时，可在 flutter pub get 更新依赖后运行
 scripts/prepare_windows_links.ps1 创建项目内插件目录联接，
@@ -68,6 +76,12 @@ scripts/download_test_core.py 下载固定官方测试内核并校验摘要。
 tests/packaged_engine.py 在打包的引擎进程中验证真实 Mihomo、
 两个本地网站、成功/失败行、各站独立推荐、导出、取消与 EOF 清理。
 这些服务是隔离测试夹具，不是公网节点测速成绩。
+
+Windows 安装器使用 Inno Setup 6.7.3。build_installer.py 从官方固定版本下载
+并核对 SHA-256，以便携模式放在项目 .tools/ 下，不修改系统 PATH 或安装全局编译器。
+tests/windows_installer.py 在全新测试目录验证完整文件、开始菜单、覆盖安装、
+已安装引擎真实请求、卸载和用户数据保留；如果检测到已有安装，会停止以避免覆盖。
+安装包脚本位于 packaging/windows/NodeScope.iss，CI 同时上传 Setup.exe 和便携 ZIP。
 
 Git 流程：独立功能分支先通过 Windows / macOS 构建和测试，然后创建 PR，
 再次核对该提交的检查结果，最后合入 master。工作流见 .github/workflows/desktop.yml。

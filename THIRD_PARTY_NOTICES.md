@@ -11,6 +11,8 @@
   按 Microsoft Visual Studio 分发条款使用。
 - Mihomo 使用用户现有客户端中的内核，不捆绑进运行发布包。
   自动测试使用 MetaCubeX 官方固定版本并核对 SHA-256。
+- Windows 安装器由 Inno Setup 6.7.3 构建，遵循其 LICENSE.TXT。
+  简体中文向导使用该官方源码发行版中的 ChineseSimplified.isl 翻译。
 - 原型中的 Alpine.js 仅用于 HTML 参考，遵循 MIT，不参与 Flutter 运行。
 
 Flutter 的 data/flutter_assets/NOTICES.Z 保留 Flutter 依赖许可。

@@ -53,9 +53,18 @@ jobs:
       - name: Build application bundle
         run: python scripts/build_bundle.py
       - name: Frozen engine smoke test
+        if: matrix.platform == 'macOS'
         run: python tests/packaged_engine.py
+      - name: Build Windows installer
+        if: matrix.platform == 'Windows'
+        run: python scripts/build_installer.py
+      - name: Windows install, upgrade and uninstall smoke test
+        if: matrix.platform == 'Windows'
+        run: python -c "import subprocess,sys; subprocess.run([sys.executable,'tests/windows_installer.py'],timeout=60,check=True)"
       - uses: actions/upload-artifact@v4
         with:
           name: NodeScope-${{ matrix.platform }}
-          path: dist/*.zip
+          path: |
+            dist/*.zip
+            dist/NodeScope-Setup.exe
           if-no-files-found: error
