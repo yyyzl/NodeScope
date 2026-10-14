@@ -28,7 +28,8 @@ HTTP provider 的获取由界面列出名称后确认；本地 file provider 只
 ## 发布
 
 Windows、macOS arm64、macOS x86_64 在各自原生 runner 上构建和验证。
-v* 标签构建全部通过后，prepare_release.py 检查四个必需程序附件并生成 SHA-256 清单，
+v* 标签推送或 GitHub Release 发布后启动构建，全部通过后 prepare_release.py 检查
+四个必需程序附件并生成 SHA-256 清单，
 再统一上传到 GitHub Release。避免把“Actions 构建成功”误当作“Release 已包含附件”。
 Mihomo 使用固定官方摘要，随包保留 GPL-3.0 与对应源码 / 构建文件链接。
 

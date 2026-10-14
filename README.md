@@ -101,7 +101,8 @@ tests/windows_installer.py 在全新测试目录验证完整文件、开始菜�
 Git 流程：独立功能分支先通过 Windows / macOS 构建和测试，然后创建 PR，
 再次核对该提交的检查结果，最后合入 master。工作流见 .github/workflows/desktop.yml。
 默认构建 Windows、Apple Silicon macOS 和 Intel macOS 三个平台。
-推送 v* 标签时，所有平台通过后自动附加安装器、三个 ZIP 和 SHA256SUMS.txt 到 Release。
+推送 v* 标签或在 GitHub 发布该版本 Release 时，所有平台通过后自动附加安装器、
+三个 ZIP 和 SHA256SUMS.txt 到 Release。
 scripts/prepare_release.py 会拒绝缺少任一平台附件的发布。
 
 ## 授权
