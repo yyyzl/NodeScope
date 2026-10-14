@@ -1,8 +1,8 @@
 # NodeScope · 节点探针
 
-一个 Flutter 原生桌面小应用，按目标网站、地区和节点范围比较 Clash/Mihomo
-线路。支持 Windows 和 macOS，复用已有测速引擎，以每个网站的真实 HTTP
-请求结果分别推荐节点。
+NodeScope 是一款 Clash/Mihomo 节点测速工具，支持 Windows 和 macOS。
+按目标网站、地区和节点范围，通过真实 HTTP 请求比较访问成功率、
+首字节延迟与波动，帮助你选出访问各网站更快、更稳定的节点，并导出测速报告。
 
 ## 启动
 
