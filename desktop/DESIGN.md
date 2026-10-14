@@ -3,7 +3,8 @@
 ## 设计目标
 
 在 Windows / macOS 原生 Flutter 窗口中复用现有测速引擎，保持已确认的 HTML
-界面、网站范围选择和真实结果。首版交付便携程序，暂不增加托盘、安装器和自动换节点。
+界面、网站范围选择和真实结果。Windows 默认交付 EXE 安装器，同时保留便携 ZIP；
+macOS 交付原生应用 ZIP。暂不增加托盘和自动换节点。
 
 ## 架构
 
@@ -20,6 +21,9 @@ Python 开发环境。核心读取和测速仍由原实现完成，避免重写�
 - 保存成功才替换网站和连接设置；保存失败保留草稿和上次配置。
 - 关闭窗口先停止轮询，再关闭引擎 stdin、等待取消和清理，最后销毁窗口。
 - Windows 后端使用 Job Object 管理本应用的子进程，不纳入用户主客户端。
+- Windows 使用 Inno Setup 封装已有程序目录，当前用户安装、开始菜单和可选桌面入口。
+  安装目录与数据目录分离，卸载只移除已安装程序，不删除用户设置和报告。
+  构建工具采用项目内便携模式，不引入全局依赖；固定官方版本和 SHA-256。
 - macOS 采用 App Store 之外的发行方式，允许读取用户选择的外部 Clash 配置及启动内核。
 
 ## 依赖
@@ -31,14 +35,19 @@ Flutter 3.47.7；window_manager、file_selector；Python、PyYAML、PyInstaller�
 
 macOS 构建需 GitHub macOS runner 或带 Xcode 的 Mac。当前只做 ad-hoc 签名，
 尚无 Apple Developer 公证。地区按节点名识别，trace 验证不是模型生成速度。
+Windows 安装器尚无代码签名证书。
 正常退出与取消验证不代表断电时一定能移除私有目录中的临时文件。
 
 ## 验证
 
 Flutter analyze、controller/widget 测试、已有 Python 回归、
 打包后真实 Mihomo 本地 HTTP 集成，以及 Windows 实际窗口运行验证。
+Windows 安装包另验证完整资源、开始菜单、覆盖安装、已安装引擎和卸载数据保护。
 GitHub Actions 分别编译 Windows 与 macOS，分支检查通过后才提交和合并 PR。
 
 ## 变更历史
 
 2026-10-14：从已确认 HTML 原型实施原生桌面窗口和进程桥接，保留现有引擎。
+
+2026-10-14：根据用户对安装体验的要求增加 Windows 单文件安装器。
+仅调整发行方式和版本，沿用已验收的 Flutter 界面与测速引擎。

@@ -16,6 +16,8 @@ from integration_real import TargetHandler, ForwardHandler, launch_http
 
 
 def bundle_engine():
+    if os.environ.get('NODESCOPE_ENGINE_BINARY'):
+        return Path(os.environ['NODESCOPE_ENGINE_BINARY'])
     if os.name=='nt':
         return ROOT/'dist/NodeScope-Windows-x64/engine/probe-engine/probe-engine.exe'
     binaries=list((ROOT/'dist').glob(
